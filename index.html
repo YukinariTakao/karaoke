@@ -406,17 +406,44 @@
     const PITCH_OPTIONS = [];
 
     function generatePitchOptions() {
+      // 半音ごとのMIDIノート番号（C1=24 〜 C6=84）
       for (let oct = 1; oct <= 6; oct++) {
         for (let i = 0; i < 12; i++) {
           const note = NOTE_NAMES[i];
           const pitch = `${note}${oct}`;
+
+          // カラオケ呼称の判定 (A4=hiA基準)
           let label = pitch;
-          if (oct === 1 && (note === 'A' || note === 'A#' || note === 'B')) label += ` (lowlow${note})`;
-          else if (oct === 2) label += ` (low${note})`;
-          else if (oct === 3) label += ` (mid1${note})`;
-          else if (oct === 4) label += (pitch === 'C4') ? ' (mid2C:中央ド)' : ` (mid2${note})`;
-          else if (oct === 5) label += ` (hi${note})`;
-          else if (oct === 6 && note === 'C') label += ` (hihiC)`;
+          
+          if (oct === 1 && (note === 'A' || note === 'A#' || note === 'B')) {
+            label += ` (lowlow${note})`;
+          } else if (oct === 2) {
+            if (note === 'A' || note === 'A#' || note === 'B') {
+              label += ` (low${note})`;
+            } else {
+              label += ` (lowlow${note})`;
+            }
+          } else if (oct === 3) {
+            if (note === 'A' || note === 'A#' || note === 'B') {
+              label += ` (mid1${note})`;
+            } else {
+              label += ` (low${note})`;
+            }
+          } else if (oct === 4) {
+            if (note === 'A' || note === 'A#' || note === 'B') {
+              label += ` (hi${note})`; // ← ここで A4 が確実に hiA になります
+            } else {
+              label += (pitch === 'C4') ? ' (mid2C:中央ド)' : ` (mid2${note})`;
+            }
+          } else if (oct === 5) {
+            if (note === 'A' || note === 'A#' || note === 'B') {
+              label += ` (hihi${note})`;
+            } else {
+              label += ` (hi${note})`;
+            }
+          } else if (oct === 6 && note === 'C') {
+            label += ` (hihiC)`;
+          }
 
           PITCH_OPTIONS.push({ value: pitch, label: label });
           if (oct === 6 && note === 'C') break;
