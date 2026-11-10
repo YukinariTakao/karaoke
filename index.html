@@ -13,6 +13,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js (スコア推移グラフ用) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
 
@@ -37,54 +39,375 @@
       }
     }
   </script>
-
   <style>
     body {
       background-color: #090d16;
-      color: #f8fafc;
+      color: #f1f5f9;
       -webkit-tap-highlight-color: transparent;
-      overscroll-behavior-y: none;
+      user-select: none;
     }
-    /* カスタムスクロールバー非表示（スマホライク） */
-    .no-scrollbar::-webkit-scrollbar {
+    input, select, textarea {
+      user-select: auto;
+    }
+    .custom-scroll::-webkit-scrollbar {
       display: none;
     }
-    .no-scrollbar {
+    .custom-scroll {
       -ms-overflow-style: none;
       scrollbar-width: none;
     }
-    /* ガラスモーフィズム */
-    .glass-header {
-      background: rgba(9, 13, 22, 0.85);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-    }
-    .glass-nav {
-      background: rgba(19, 27, 46, 0.92);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .animate-fade-in {
-      animation: fadeIn 0.2s ease-out forwards;
-    }
   </style>
 </head>
-<body class="min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white pb-24">
+<body class="min-h-screen flex flex-col pb-24">
 
-  <!-- ==========================================
-       1. 初期曲データベース (コード直接編集用)
-       ========================================== -->
+  <!-- ヘッダー -->
+  <header class="sticky top-0 z-30 bg-bgBase/90 backdrop-blur-md border-b border-slate-800/80 px-4 py-3">
+    <div class="max-w-2xl mx-auto flex items-center justify-between">
+      <div class="flex items-center space-x-2">
+        <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
+          <i data-lucide="mic-2" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h1 class="text-base font-bold leading-tight flex items-center gap-2">
+            Myカラオケ帳
+            <span id="total-songs-badge" class="text-[11px] font-normal px-2 py-0.5 rounded-full bg-slate-800 text-indigo-400 border border-indigo-500/20">0曲</span>
+          </h1>
+          <p class="text-[10px] text-slate-400">音域・スコア推移データベース</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <button id="btn-export-json" class="p-2 text-xs bg-slate-800/80 border border-slate-700 hover:bg-slate-700 text-slate-300 rounded-lg flex items-center gap-1 transition">
+          <i data-lucide="code" class="w-3.5 h-3.5"></i>
+          <span>JSON</span>
+        </button>
+        <button id="btn-open-add-modal" class="px-3 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg shadow-md shadow-indigo-600/30 flex items-center gap-1 transition active:scale-95">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          <span>曲追加</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 検索 & フィルターバー -->
+    <div class="max-w-2xl mx-auto mt-2.5 space-y-2">
+      <div class="relative flex items-center">
+        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none"></i>
+        <input type="search" id="search-input" placeholder="曲名・アーティスト・よみがな検索..." 
+          class="w-full pl-9 pr-8 py-2 bg-slate-900 border border-slate-700/80 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition">
+        <button id="clear-search-btn" class="absolute right-2.5 p-1 text-slate-400 hover:text-slate-200 hidden">
+          <i data-lucide="x" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+
+      <!-- 50音クイックインデックス -->
+      <div id="syllabary-bar" class="flex items-center space-x-1 overflow-x-auto custom-scroll py-1 text-[11px] font-medium text-slate-400 border-t border-slate-800/40">
+        <button class="syl-btn px-2.5 py-1 rounded-md bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 whitespace-nowrap" data-syl="ALL">すべて</button>
+        <button class="syl-btn px-2.5 py-1 rounded-md hover:bg-slate-800 whitespace-nowrap" data-syl="あ">あ</button>
+        <button class="syl-btn px-2.5 py-1 rounded-md hover:bg-slate-800 whitespace-nowrap" data-syl="か">か</button>
+        <button class="syl-btn px-2.5 py-1 rounded-md hover:bg-slate-800 whitespace-nowrap" data-syl="さ">さ</button>
+        <button class="syl-btn px-2.5 py-1 rounded-md hover:bg-slate-800 whitespace-nowrap" data-syl="た">た</button>
+        <button class="syl-btn px-2.5 py-1 rounded-md hover:bg-slate-800 whitespace-nowrap" data-syl="な">な</button>
+        <button class="syl-btn px-2.5 py-1 rounded-md hover:bg-slate-800 whitespace-nowrap" data-syl="は">は</button>
+        <button class="syl-btn px-2.5 py-1 rounded-md hover:bg-slate-800 whitespace-nowrap" data-syl="ま">ま</button>
+        <button class="syl-btn px-2.5 py-1 rounded-md hover:bg-slate-800 whitespace-nowrap" data-syl="や">や</button>
+        <button class="syl-btn px-2.5 py-1 rounded-md hover:bg-slate-800 whitespace-nowrap" data-syl="ら">ら</button>
+        <button class="syl-btn px-2.5 py-1 rounded-md hover:bg-slate-800 whitespace-nowrap" data-syl="わ">わ</button>
+        <button class="syl-btn px-2.5 py-1 rounded-md hover:bg-slate-800 whitespace-nowrap" data-syl="他">他</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- メインコンテンツ -->
+  <main class="max-w-2xl mx-auto w-full px-4 pt-3 flex-1">
+    <div id="songs-container" class="space-y-3">
+      <!-- JavaScriptで動的生成 -->
+    </div>
+    <div id="empty-state" class="hidden py-16 text-center text-slate-500 text-xs">
+      <i data-lucide="music-4" class="w-10 h-10 mx-auto mb-2 text-slate-600"></i>
+      一致する曲が見つかりませんでした
+    </div>
+  </main>
+
+  <!-- ボトムタブバー -->
+  <nav class="fixed bottom-0 left-0 right-0 z-30 bg-bgBase/95 backdrop-blur-md border-t border-slate-800/90 py-1.5 px-6">
+    <div class="max-w-md mx-auto grid grid-cols-3 gap-2">
+      <button id="tab-btn-kana" class="flex flex-col items-center justify-center py-1 text-indigo-400 font-semibold transition active:scale-95" data-tab="kana">
+        <i data-lucide="list-ordered" class="w-5 h-5 mb-0.5"></i>
+        <span class="text-[10px]">50音順</span>
+      </button>
+      <button id="tab-btn-artist" class="flex flex-col items-center justify-center py-1 text-slate-400 hover:text-slate-200 transition active:scale-95" data-tab="artist">
+        <i data-lucide="users" class="w-5 h-5 mb-0.5"></i>
+        <span class="text-[10px]">アーティスト別</span>
+      </button>
+      <button id="tab-btn-rank" class="flex flex-col items-center justify-center py-1 text-slate-400 hover:text-slate-200 transition active:scale-95" data-tab="rank">
+        <i data-lucide="trophy" class="w-5 h-5 mb-0.5"></i>
+        <span class="text-[10px]">ランキング</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- 1. 曲詳細＆スコア履歴モーダル -->
+  <div id="detail-modal" class="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4 transition-opacity">
+    <div class="bg-slate-900 border border-slate-700/80 w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl">
+      <!-- 詳細ヘッダー -->
+      <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/60 sticky top-0 z-10">
+        <div>
+          <h2 id="detail-title" class="text-base font-bold text-slate-100"></h2>
+          <p id="detail-artist" class="text-xs text-slate-400"></p>
+        </div>
+        <div class="flex items-center space-x-1">
+          <button id="btn-open-edit" class="p-2 text-xs text-indigo-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg flex items-center gap-1">
+            <i data-lucide="pencil" class="w-4 h-4"></i>
+            <span>曲情報編集</span>
+          </button>
+          <button id="btn-close-detail" class="p-2 text-slate-400 hover:text-white rounded-lg">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- 詳細スクロールコンテンツ -->
+      <div class="overflow-y-auto p-4 space-y-4 custom-scroll">
+        <!-- 音域サマリー -->
+        <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+          <div class="text-[11px] font-semibold text-slate-400 mb-2 flex items-center justify-between">
+            <span>音域データ</span>
+            <span class="text-[10px] text-slate-500">中央ド = C4 (mid2C)</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-center">
+            <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
+              <span class="text-[10px] text-slate-400 block">最低音</span>
+              <span id="detail-low" class="text-xs font-mono font-bold text-emerald-400">-</span>
+            </div>
+            <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
+              <span class="text-[10px] text-slate-400 block">地声最高</span>
+              <span id="detail-high" class="text-xs font-mono font-bold text-amber-400">-</span>
+            </div>
+            <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
+              <span class="text-[10px] text-slate-400 block">裏声最高</span>
+              <span id="detail-falsetto" class="text-xs font-mono font-bold text-purple-400">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 自己ベストスコア -->
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-blue-950/30 border border-blue-900/50 rounded-xl p-2.5 text-center">
+            <span class="text-[10px] text-blue-400 font-semibold block mb-0.5">JOYSOUND 最高</span>
+            <span id="detail-joy-best" class="text-base font-mono font-bold text-blue-300">-</span>
+          </div>
+          <div class="bg-rose-950/30 border border-rose-900/50 rounded-xl p-2.5 text-center">
+            <span class="text-[10px] text-rose-400 font-semibold block mb-0.5">LIVE DAM 最高</span>
+            <span id="detail-dam-best" class="text-base font-mono font-bold text-rose-300">-</span>
+          </div>
+        </div>
+
+        <!-- スコア推移グラフ -->
+        <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+          <div class="text-[11px] font-semibold text-slate-400 mb-2 flex items-center justify-between">
+            <span>スコア推移グラフ</span>
+            <span class="text-[10px] text-slate-500">練習の成果</span>
+          </div>
+          <div class="w-full h-44">
+            <canvas id="score-chart"></canvas>
+          </div>
+        </div>
+
+        <!-- 新しい点数を記録する入力フォーム -->
+        <div class="bg-indigo-950/20 border border-indigo-900/40 rounded-xl p-3 space-y-2.5">
+          <h3 class="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+            <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+            新しいスコアを記録
+          </h3>
+          <form id="record-score-form" class="space-y-2">
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <label class="text-[10px] text-slate-400 block mb-1">日付</label>
+                <input type="date" id="score-input-date" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-200">
+              </div>
+              <div>
+                <label class="text-[10px] text-slate-400 block mb-1">機種</label>
+                <select id="score-input-machine" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-200">
+                  <option value="JOY">JOYSOUND</option>
+                  <option value="DAM">LIVE DAM</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-[10px] text-slate-400 block mb-1">点数</label>
+                <input type="number" step="0.001" min="0" max="100" id="score-input-val" required placeholder="93.500" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-200 font-mono">
+              </div>
+            </div>
+            <div>
+              <input type="text" id="score-input-memo" placeholder="メモ（例：原キー、裏声かすれた など）" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-300">
+            </div>
+            <button type="submit" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition shadow-md shadow-indigo-600/30">
+              スコアを保存
+            </button>
+          </form>
+        </div>
+
+        <!-- 履歴一覧テーブル -->
+        <div class="space-y-2">
+          <h3 class="text-xs font-bold text-slate-300 flex items-center justify-between">
+            <span>過去の歌唱履歴 (<span id="history-count">0</span>件)</span>
+          </h3>
+          <div id="history-list" class="space-y-1.5">
+            <!-- 履歴アイテム -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. 曲追加 / 編集モーダル（音域ドロップダウン式） -->
+  <div id="edit-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-slate-900 border border-slate-700/80 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl">
+      <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/80">
+        <h2 id="modal-form-title" class="text-sm font-bold text-slate-100">曲を追加</h2>
+        <button id="btn-close-edit" class="p-1.5 text-slate-400 hover:text-white rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="song-edit-form" class="overflow-y-auto p-4 space-y-3.5 custom-scroll">
+        <input type="hidden" id="form-song-id">
+
+        <div>
+          <label class="text-xs font-semibold text-slate-300 block mb-1">曲名 <span class="text-rose-500">*</span></label>
+          <input type="text" id="form-title" required placeholder="曲名を入力" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-slate-300 block mb-1">曲名よみがな（ひらがな） <span class="text-rose-500">*</span></label>
+          <input type="text" id="form-reading" required placeholder="例: すいへいせん" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-xs font-semibold text-slate-300 block mb-1">アーティスト <span class="text-rose-500">*</span></label>
+            <input type="text" id="form-artist" required placeholder="歌手名" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-300 block mb-1">歌手よみがな</label>
+            <input type="text" id="form-artist-reading" placeholder="例: ばっくなんばー" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+          </div>
+        </div>
+
+        <!-- 音域ドロップダウン選択 -->
+        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-300">音域設定（ドロップダウン選択）</span>
+            <span class="text-[10px] text-slate-500">中央ド = C4</span>
+          </div>
+
+          <div>
+            <label class="text-[11px] text-slate-400 block mb-1">最低音</label>
+            <select id="form-low" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono">
+              <!-- JSで自動生成 -->
+            </select>
+          </div>
+
+          <div>
+            <label class="text-[11px] text-slate-400 block mb-1">最高音（地声）</label>
+            <select id="form-high" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono">
+              <!-- JSで自動生成 -->
+            </select>
+          </div>
+
+          <div>
+            <label class="text-[11px] text-slate-400 block mb-1">裏声最高音（存在する場合）</label>
+            <select id="form-falsetto" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono">
+              <!-- JSで自動生成 -->
+            </select>
+          </div>
+        </div>
+
+        <div class="pt-2 flex items-center gap-2">
+          <button type="button" id="btn-delete-song" class="hidden px-3 py-2.5 bg-rose-600/20 text-rose-400 border border-rose-600/30 rounded-xl text-xs font-semibold hover:bg-rose-600/30 transition">
+            削除
+          </button>
+          <button type="submit" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-indigo-600/30">
+            保存する
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 3. JSONモーダル -->
+  <div id="json-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700/80 w-full max-w-lg rounded-2xl p-4 flex flex-col space-y-3 shadow-2xl">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-1.5">
+          <i data-lucide="database" class="w-4 h-4 text-indigo-400"></i>
+          データのエクスポート / インポート
+        </h3>
+        <button id="btn-close-json" class="p-1 text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <p class="text-[11px] text-slate-400">
+        現在の全持ち曲・スコア履歴データです。コピーしてコードの初期値にしたり、別端末へ引き継げます。
+      </p>
+      <textarea id="json-textarea" class="w-full h-56 bg-slate-950 border border-slate-700 rounded-xl p-3 text-[11px] font-mono text-slate-300 resize-none focus:outline-none"></textarea>
+      <div class="flex items-center justify-between gap-2 pt-1">
+        <button id="btn-import-json" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-medium border border-slate-700 transition">
+          この内容を取り込む
+        </button>
+        <button id="btn-copy-json" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-600/30 transition">
+          JSONをコピー
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    /**
-     * 曲を追加・編集する場合は以下の配列を書き換えるか、
-     * アプリ画面右上の「JSON出力」からコードをコピーしてここに貼り付けてください。
-     */
+    // --- 音域定義とドロップダウン生成 (ピアノ全音：A1〜C6 + 日本の呼称) ---
+    const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const PITCH_OPTIONS = [];
+
+    function generatePitchOptions() {
+      for (let oct = 1; oct <= 6; oct++) {
+        for (let i = 0; i < 12; i++) {
+          const note = NOTE_NAMES[i];
+          const pitch = `${note}${oct}`;
+          
+          // 日本のカラオケ音域呼称のラベル付け
+          let label = pitch;
+          if (oct === 1 && (note === 'A' || note === 'A#' || note === 'B')) label += ` (lowlow${note})`;
+          else if (oct === 2) label += ` (low${note})`;
+          else if (oct === 3) label += ` (mid1${note})`;
+          else if (oct === 4) label += (pitch === 'C4') ? ' (mid2C:中央ド)' : ` (mid2${note})`;
+          else if (oct === 5) label += ` (hi${note})`;
+          else if (oct === 6 && note === 'C') label += ` (hihiC)`;
+
+          PITCH_OPTIONS.push({ value: pitch, label: label });
+          if (oct === 6 && note === 'C') break;
+        }
+      }
+    }
+    generatePitchOptions();
+
+    function populateSelect(selectEl, selectedVal, includeNone = false) {
+      selectEl.innerHTML = '';
+      if (includeNone) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'なし（裏声なし）';
+        selectEl.appendChild(opt);
+      }
+      PITCH_OPTIONS.forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item.value;
+        opt.textContent = item.label;
+        if (item.value === selectedVal) opt.selected = true;
+        selectEl.appendChild(opt);
+      });
+    }
+
+    // --- 初期データベース（履歴配列 history を内包） ---
     const defaultSongDatabase = [
       {
+        id: "s1",
         title: "水平線",
         artist: "back number",
         reading: "すいへいせん",
@@ -92,10 +415,14 @@
         low: "D3",
         high: "G4",
         falsetto: "C5",
-        joy: 93.353,
-        dam: 88.894
+        history: [
+          { id: "h1", date: "2026-10-15", machine: "JOY", score: 91.820, memo: "歌い始め" },
+          { id: "h2", date: "2026-10-28", machine: "JOY", score: 93.353, memo: "サビの音程安定" },
+          { id: "h3", date: "2026-11-02", machine: "DAM", score: 88.894, memo: "精密採点Ai" }
+        ]
       },
       {
+        id: "s2",
         title: "世界に一つだけの花",
         artist: "槇原敬之",
         reading: "せかいにひとつだけのはな",
@@ -103,54 +430,14 @@
         low: "E3",
         high: "E4",
         falsetto: null,
-        joy: 96.442,
-        dam: 89.636
+        history: [
+          { id: "h4", date: "2026-09-20", machine: "JOY", score: 94.200, memo: "" },
+          { id: "h5", date: "2026-10-10", machine: "JOY", score: 96.442, memo: "自己ベスト" },
+          { id: "h6", date: "2026-10-25", machine: "DAM", score: 89.636, memo: "" }
+        ]
       },
       {
-        title: "チェリー",
-        artist: "スピッツ",
-        reading: "ちぇりー",
-        artistReading: "すぴっつ",
-        low: "C3",
-        high: "G4",
-        falsetto: null,
-        joy: 95.120,
-        dam: 91.205
-      },
-      {
-        title: "Pretender",
-        artist: "Official髭男dism",
-        reading: "ぷりてんだー",
-        artistReading: "おふぃしゃるひげだんでぃずむ",
-        low: "F3",
-        high: "A#4",
-        falsetto: "C#5",
-        joy: 91.840,
-        dam: 87.412
-      },
-      {
-        title: "ケセラセラ",
-        artist: "Mrs. GREEN APPLE",
-        reading: "けせらせら",
-        artistReading: "みせすぐりーんあっぷる",
-        low: "C3",
-        high: "C5",
-        falsetto: "E5",
-        joy: 89.512,
-        dam: null
-      },
-      {
-        title: "Lemon",
-        artist: "米津玄師",
-        reading: "れもん",
-        artistReading: "よねづけんし",
-        low: "B2",
-        high: "G#4",
-        falsetto: "B4",
-        joy: 94.775,
-        dam: 90.881
-      },
-      {
+        id: "s3",
         title: "奏（かなで）",
         artist: "スキマスイッチ",
         reading: "かなで",
@@ -158,54 +445,13 @@
         low: "C3",
         high: "G4",
         falsetto: "A4",
-        joy: 95.880,
-        dam: 92.114
+        history: [
+          { id: "h7", date: "2026-10-05", machine: "JOY", score: 95.880, memo: "" },
+          { id: "h8", date: "2026-10-18", machine: "DAM", score: 92.114, memo: "" }
+        ]
       },
       {
-        title: "ひまわりの約束",
-        artist: "秦基博",
-        reading: "ひまわりのやくそく",
-        artistReading: "はたもとひろ",
-        low: "C3",
-        high: "G4",
-        falsetto: "A#4",
-        joy: 94.210,
-        dam: 90.045
-      },
-      {
-        title: "天体観測",
-        artist: "BUMP OF CHICKEN",
-        reading: "てんたいかんそく",
-        artistReading: "ばんぷおぶちきん",
-        low: "D#3",
-        high: "G#4",
-        falsetto: null,
-        joy: 93.905,
-        dam: 89.550
-      },
-      {
-        title: "高嶺の花子さん",
-        artist: "back number",
-        reading: "たかねのはなこさん",
-        artistReading: "ばっくなんばー",
-        low: "C#3",
-        high: "A4",
-        falsetto: "B4",
-        joy: 92.400,
-        dam: 88.120
-      },
-      {
-        title: "さよならエレジー",
-        artist: "菅田将暉",
-        reading: "さよならえれじー",
-        artistReading: "すだまさき",
-        low: "D3",
-        high: "F#4",
-        falsetto: null,
-        joy: 96.012,
-        dam: 91.500
-      },
-      {
+        id: "s4",
         title: "小さな恋のうた",
         artist: "MONGOL800",
         reading: "ちいさなこいのうた",
@@ -213,1081 +459,603 @@
         low: "A2",
         high: "E4",
         falsetto: null,
-        joy: 97.105,
-        dam: 93.410
+        history: [
+          { id: "h9", date: "2026-09-12", machine: "JOY", score: 97.105, memo: "高得点曲" },
+          { id: "h10", date: "2026-10-22", machine: "DAM", score: 93.410, memo: "" }
+        ]
+      },
+      {
+        id: "s5",
+        title: "さよならエレジー",
+        artist: "菅田将暉",
+        reading: "さよならえれじー",
+        artistReading: "すだまさき",
+        low: "D3",
+        high: "F#4",
+        falsetto: null,
+        history: [
+          { id: "h11", date: "2026-10-14", machine: "JOY", score: 96.012, memo: "" },
+          { id: "h12", date: "2026-11-01", machine: "DAM", score: 91.500, memo: "" }
+        ]
       }
     ];
-  </script>
 
-  <!-- ==========================================
-       2. 上部固定ヘッダー＆検索・フィルターバー
-       ========================================== -->
-  <header class="sticky top-0 z-30 glass-header border-b border-slate-800/80">
-    <div class="max-w-xl mx-auto px-4 pt-3 pb-2.5">
-      
-      <!-- タイトル行＆アクションボタン -->
-      <div class="flex items-center justify-between mb-3">
-        <div class="flex items-center gap-2.5">
-          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <i data-lucide="mic-2" class="w-5 h-5 text-white"></i>
-          </div>
-          <div>
-            <h1 class="text-base font-extrabold tracking-tight text-white flex items-center gap-2">
-              Myカラオケ帳
-              <span id="totalCountBadge" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-indigo-300 border border-slate-700">0曲</span>
-            </h1>
-            <p class="text-[11px] text-slate-400">音域・採点スコア管理データベース</p>
-          </div>
-        </div>
+    // --- State 管理 ---
+    let songDatabase = [];
+    let activeTab = 'kana';
+    let currentSyl = 'ALL';
+    let searchQuery = '';
+    let currentSelectedSongId = null;
+    let scoreChartInstance = null;
 
-        <div class="flex items-center gap-1.5">
-          <!-- JSON出力/管理ボタン -->
-          <button onclick="openJsonModal()" class="p-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-slate-700/70 transition flex items-center gap-1 text-xs font-medium" title="JSON出力・データ管理">
-            <i data-lucide="code-2" class="w-4 h-4 text-indigo-400"></i>
-            <span class="hidden sm:inline">JSON</span>
-          </button>
-          <!-- 曲追加ボタン -->
-          <button onclick="openEditModal()" class="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white shadow-lg shadow-indigo-600/30 transition flex items-center gap-1 text-xs font-bold">
-            <i data-lucide="plus" class="w-4 h-4"></i>
-            <span>曲追加</span>
-          </button>
-        </div>
-      </div>
+    const STORAGE_KEY = 'my_karaoke_data_v2';
 
-      <!-- 検索バー ＆ フィルター開閉ボタン -->
-      <div class="flex gap-2">
-        <div class="relative flex-1">
-          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
-          <input
-            id="searchInput"
-            type="text"
-            placeholder="曲名・アーティスト・よみがな検索..."
-            class="w-full pl-9 pr-8 py-2 bg-slate-900/90 border border-slate-700/80 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
-            oninput="handleSearchInput()"
-          >
-          <button
-            id="clearSearchBtn"
-            onclick="clearSearch()"
-            class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5"
-          >
-            <i data-lucide="x-circle" class="w-4 h-4"></i>
-          </button>
-        </div>
-
-        <button
-          id="filterToggleBtn"
-          onclick="toggleFilterPanel()"
-          class="px-3 py-2 rounded-xl bg-slate-800/90 border border-slate-700/80 text-slate-300 flex items-center gap-1.5 text-xs font-semibold transition relative"
-        >
-          <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
-          <span>絞込</span>
-          <span id="activeFilterDot" class="hidden w-2 h-2 rounded-full bg-indigo-400 absolute top-1.5 right-1.5"></span>
-        </button>
-      </div>
-
-      <!-- 折りたたみ式・音域＆スコアフィルターパネル -->
-      <div id="filterPanel" class="hidden mt-2.5 pt-2.5 border-t border-slate-800/90 space-y-2.5 animate-fade-in">
-        <div class="grid grid-cols-2 gap-2">
-          <!-- 地声最高音の上限 -->
-          <div>
-            <label class="block text-[11px] font-semibold text-slate-400 mb-1">地声最高音の上限</label>
-            <select id="maxHighPitchSelect" onchange="applyFilters()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
-              <option value="ALL">指定なし（すべて）</option>
-              <option value="E4">E4 (mid2E) 以下</option>
-              <option value="F4">F4 (mid2F) 以下</option>
-              <option value="F#4">F#4 (mid2F#) 以下</option>
-              <option value="G4">G4 (mid2G) 以下</option>
-              <option value="G#4">G#4 (mid2G#) 以下</option>
-              <option value="A4">A4 (hiA) 以下</option>
-              <option value="A#4">A#4 (hiA#) 以下</option>
-              <option value="B4">B4 (hiB) 以下</option>
-              <option value="C5">C5 (hiC) 以下</option>
-            </select>
-          </div>
-
-          <!-- 裏声フィルター -->
-          <div>
-            <label class="block text-[11px] font-semibold text-slate-400 mb-1">裏声（ファルセット）</label>
-            <select id="falsettoFilterSelect" onchange="applyFilters()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
-              <option value="ALL">すべて</option>
-              <option value="NONE">裏声なし（地声のみ）</option>
-              <option value="HAS">裏声あり</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between gap-2 pt-0.5">
-          <!-- スコア記録フィルター -->
-          <div class="flex items-center gap-1.5 flex-1">
-            <span class="text-[11px] font-semibold text-slate-400 shrink-0">採点記録:</span>
-            <div class="inline-flex rounded-lg bg-slate-900 p-0.5 border border-slate-800 text-[11px]">
-              <button onclick="setScoreFilter('ALL')" id="scoreFilterAll" class="px-2 py-1 rounded-md bg-indigo-600 text-white font-semibold transition">すべて</button>
-              <button onclick="setScoreFilter('JOY')" id="scoreFilterJoy" class="px-2 py-1 rounded-md text-slate-400 hover:text-white transition">JOYあり</button>
-              <button onclick="setScoreFilter('DAM')" id="scoreFilterDam" class="px-2 py-1 rounded-md text-slate-400 hover:text-white transition">DAMあり</button>
-            </div>
-          </div>
-
-          <button onclick="resetAllFilters()" class="text-[11px] text-indigo-400 hover:text-indigo-300 font-medium underline shrink-0">
-            リセット
-          </button>
-        </div>
-      </div>
-
-      <!-- 50音クイックジャンプバー（50音順タブの時のみ表示） -->
-      <div id="kanaJumpBar" class="mt-2 pt-1.5 border-t border-slate-800/60 flex items-center gap-1 overflow-x-auto no-scrollbar">
-        <!-- JSで「あ・か・さ・た・な・は・ま・や・ら・わ」を生成 -->
-      </div>
-
-      <!-- ランキング機種切替バー（ランキングタブの時のみ表示） -->
-      <div id="rankingSubBar" class="hidden mt-2 pt-2 border-t border-slate-800/60 flex items-center justify-between">
-        <span class="text-xs text-slate-400 font-medium">ソート基準機種:</span>
-        <div class="inline-flex rounded-xl bg-slate-900 p-1 border border-slate-800">
-          <button id="rankBtnJoy" onclick="setRankingType('joy')" class="px-3.5 py-1 rounded-lg text-xs font-bold bg-blue-600 text-white shadow transition flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-blue-200"></span>
-            JOYSOUND順
-          </button>
-          <button id="rankBtnDam" onclick="setRankingType('dam')" class="px-3.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-rose-400"></span>
-            LIVE DAM順
-          </button>
-        </div>
-      </div>
-
-    </div>
-  </header>
-
-  <!-- ==========================================
-       3. メインコンテンツリスト領域
-       ========================================== -->
-  <main class="flex-1 max-w-xl w-full mx-auto px-4 pt-3">
-    <!-- 音域凡例＆現在の絞り込みステータス -->
-    <div class="flex items-center justify-between text-[11px] text-slate-400 mb-2.5 px-1">
-      <div class="flex items-center gap-2">
-        <span id="resultCountText" class="font-semibold text-slate-300">全 0 曲</span>
-        <span id="notationToggleBtn" onclick="togglePitchNotation()" class="cursor-pointer px-2 py-0.5 rounded bg-slate-800/90 border border-slate-700 text-slate-300 hover:border-indigo-500 transition select-none">
-          表記: <strong id="notationLabel" class="text-indigo-400">C4/G4</strong> ⇄ hiA
-        </span>
-      </div>
-      <div class="flex items-center gap-2 text-[10px]">
-        <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-400"></span>低〜中音</span>
-        <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-400"></span>G4〜A4</span>
-        <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-400"></span>A#4〜高音</span>
-      </div>
-    </div>
-
-    <!-- 曲リスト描画コンテナ -->
-    <div id="songListContainer" class="space-y-4"></div>
-  </main>
-
-  <!-- ==========================================
-       4. 下部固定タブナビゲーション (スマホ片手操作)
-       ========================================== -->
-  <nav class="fixed bottom-0 inset-x-0 z-30 glass-nav border-t border-slate-800/90 pb-safe">
-    <div class="max-w-xl mx-auto px-4 py-1.5 grid grid-cols-3 gap-2">
-      <button onclick="switchTab('kana')" id="tabBtnKana" class="flex flex-col items-center justify-center py-1.5 rounded-xl text-indigo-400 bg-indigo-500/10 font-bold transition">
-        <i data-lucide="list-ordered" class="w-5 h-5 mb-0.5"></i>
-        <span class="text-[11px]">50音順</span>
-      </button>
-      <button onclick="switchTab('artist')" id="tabBtnArtist" class="flex flex-col items-center justify-center py-1.5 rounded-xl text-slate-400 hover:text-slate-200 font-medium transition">
-        <i data-lucide="users" class="w-5 h-5 mb-0.5"></i>
-        <span class="text-[11px]">アーティスト別</span>
-      </button>
-      <button onclick="switchTab('ranking')" id="tabBtnRanking" class="flex flex-col items-center justify-center py-1.5 rounded-xl text-slate-400 hover:text-slate-200 font-medium transition">
-        <i data-lucide="trophy" class="w-5 h-5 mb-0.5"></i>
-        <span class="text-[11px]">ランキング</span>
-      </button>
-    </div>
-  </nav>
-
-  <!-- ==========================================
-       5. 曲の追加・編集モーダル
-       ========================================== -->
-  <div id="editModal" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="bg-slate-900 border border-slate-700/80 w-full max-w-lg rounded-t-3xl sm:rounded-2xl p-5 max-h-[92vh] overflow-y-auto animate-fade-in shadow-2xl">
-      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
-        <h2 id="editModalTitle" class="text-base font-bold text-white flex items-center gap-2">
-          <i data-lucide="music" class="w-5 h-5 text-indigo-400"></i>
-          <span>曲データの追加・編集</span>
-        </h2>
-        <button onclick="closeEditModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-white bg-slate-800">
-          <i data-lucide="x" class="w-4 h-4"></i>
-        </button>
-      </div>
-
-      <form id="songForm" onsubmit="saveSongForm(event)" class="space-y-3.5 mt-4">
-        <input type="hidden" id="editSongIndex" value="-1">
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">曲名 <span class="text-rose-400">*</span></label>
-            <input type="text" id="inputTitle" required placeholder="例: 水平線" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">曲名よみがな（ひらがな） <span class="text-rose-400">*</span></label>
-            <input type="text" id="inputReading" required placeholder="例: すいへいせん" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">アーティスト名 <span class="text-rose-400">*</span></label>
-            <input type="text" id="inputArtist" required placeholder="例: back number" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">アーティストよみがな <span class="text-rose-400">*</span></label>
-            <input type="text" id="inputArtistReading" required placeholder="例: ばっくなんばー" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none">
-          </div>
-        </div>
-
-        <!-- 音域入力 -->
-        <div class="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-indigo-300">音域データ（C3, G4 または mid1C, hiA 表記対応）</span>
-          </div>
-          <div class="grid grid-cols-3 gap-2">
-            <div>
-              <label class="block text-[11px] text-slate-400 mb-1">最低音</label>
-              <input type="text" id="inputLow" placeholder="例: D3" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-sm text-white uppercase focus:border-indigo-500 focus:outline-none">
-            </div>
-            <div>
-              <label class="block text-[11px] text-slate-400 mb-1">地声最高音</label>
-              <input type="text" id="inputHigh" placeholder="例: G4" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-sm text-white uppercase focus:border-indigo-500 focus:outline-none">
-            </div>
-            <div>
-              <label class="block text-[11px] text-slate-400 mb-1">裏声最高音(任意)</label>
-              <input type="text" id="inputFalsetto" placeholder="なしは空欄" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-sm text-white uppercase focus:border-indigo-500 focus:outline-none">
-            </div>
-          </div>
-        </div>
-
-        <!-- 採点スコア入力 -->
-        <div class="grid grid-cols-2 gap-3">
-          <div class="p-3 rounded-xl bg-blue-950/30 border border-blue-800/40">
-            <label class="block text-xs font-bold text-blue-400 mb-1">JOYSOUND 最高点</label>
-            <input type="number" step="0.001" min="0" max="100" id="inputJoy" placeholder="例: 94.520" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-sm text-white font-mono focus:border-blue-500 focus:outline-none">
-          </div>
-          <div class="p-3 rounded-xl bg-rose-950/30 border border-rose-800/40">
-            <label class="block text-xs font-bold text-rose-400 mb-1">LIVE DAM 最高点</label>
-            <input type="number" step="0.001" min="0" max="100" id="inputDam" placeholder="例: 90.125" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-sm text-white font-mono focus:border-rose-500 focus:outline-none">
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between pt-3 border-t border-slate-800 gap-2">
-          <button type="button" id="deleteSongBtn" onclick="deleteCurrentSong()" class="hidden px-3 py-2.5 rounded-xl bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800/60 text-xs font-bold transition">
-            削除する
-          </button>
-          <div class="flex items-center gap-2 ml-auto">
-            <button type="button" onclick="closeEditModal()" class="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold">キャンセル</button>
-            <button type="submit" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30">保存する</button>
-          </div>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- ==========================================
-       6. JSONエクスポート＆データ管理モーダル
-       ========================================== -->
-  <div id="jsonModal" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 w-full max-w-lg rounded-2xl p-5 space-y-4 animate-fade-in shadow-2xl">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <div>
-          <h2 class="text-base font-bold text-white flex items-center gap-2">
-            <i data-lucide="code-2" class="w-5 h-5 text-indigo-400"></i>
-            <span>コード用JSON出力・データ管理</span>
-          </h2>
-          <p class="text-[11px] text-slate-400 mt-0.5">スマホ上で追加・編集した曲データをHTMLコード内に反映できます</p>
-        </div>
-        <button onclick="closeJsonModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-white bg-slate-800">
-          <i data-lucide="x" class="w-4 h-4"></i>
-        </button>
-      </div>
-
-      <div class="space-y-2">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold text-slate-300">`index.html` 貼り付け用コード:</span>
-          <button onclick="copyJsonToClipboard()" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 shadow">
-            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
-            <span>JSONをコピー</span>
-          </button>
-        </div>
-        <textarea id="jsonExportArea" readonly class="w-full h-48 bg-slate-950 border border-slate-800 rounded-xl p-3 text-[11px] font-mono text-emerald-300 focus:outline-none"></textarea>
-      </div>
-
-      <div class="flex items-center justify-between pt-2 border-t border-slate-800 text-xs">
-        <button onclick="resetToDefaultDatabase()" class="text-rose-400 hover:text-rose-300 underline font-medium">
-          ブラウザ保存データを初期化（コード初期値に戻す）
-        </button>
-        <button onclick="closeJsonModal()" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-200 font-semibold">閉じる</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- トースト通知 -->
-  <div id="toast" class="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 hidden px-4 py-2.5 rounded-full bg-indigo-600 text-white text-xs font-bold shadow-xl flex items-center gap-2">
-    <i data-lucide="check-circle-2" class="w-4 h-4"></i>
-    <span id="toastMessage">保存しました</span>
-  </div>
-
-  <!-- ==========================================
-       7. アプリケーションロジック (JavaScript)
-       ========================================== -->
-  <script>
-    const STORAGE_KEY = 'my_karaoke_songs_v1';
-
-    // 状態管理
-    let songs = [];
-    let currentTab = 'kana'; // 'kana' | 'artist' | 'ranking'
-    let rankingType = 'joy'; // 'joy' | 'dam'
-    let scoreFilter = 'ALL'; // 'ALL' | 'JOY' | 'DAM'
-    let useJapanesePitchNotation = false; // false: C4/G4, true: mid2C/mid2G
-    let openArtistGroups = new Set();
-
-    // 50音行定義
-    const KANA_ROWS = [
-      { label: 'あ', chars: 'あいうえおぁぃぅぇぉヴ' },
-      { label: 'か', chars: 'かきくけこがぎぐげご' },
-      { label: 'さ', chars: 'さしすせそざじずぜぞ' },
-      { label: 'た', chars: 'たちつてとだぢづでどっ' },
-      { label: 'な', chars: 'なにぬねの' },
-      { label: 'は', chars: 'はひふへほばびぶべぼぱぴぷぺぽ' },
-      { label: 'ま', chars: 'まみむめも' },
-      { label: 'や', chars: 'やゆよゃゅょ' },
-      { label: 'ら', chars: 'らりるれろ' },
-      { label: 'わ', chars: 'わをんゎ' }
-    ];
-
-    // 初期化
-    window.addEventListener('DOMContentLoaded', () => {
-      loadSongsData();
-      renderView();
-      lucide.createIcons();
-    });
-
-    function loadSongsData() {
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          songs = JSON.parse(saved);
-        } else {
-          songs = JSON.parse(JSON.stringify(defaultSongDatabase));
+    function initData() {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        try {
+          songDatabase = JSON.parse(stored);
+        } catch (e) {
+          songDatabase = defaultSongDatabase;
         }
-      } catch (e) {
-        songs = JSON.parse(JSON.stringify(defaultSongDatabase));
+      } else {
+        songDatabase = defaultSongDatabase;
       }
+      saveToStorage();
     }
 
-    function saveSongsData() {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(songs));
-      } catch (e) {
-        console.error('Failed to save to localStorage', e);
-      }
+    function saveToStorage() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(songDatabase));
     }
 
-    // ==========================================
-    // 音階（ピッチ）数値変換 ＆ 表記変換ロジック
-    // ==========================================
-    const NOTE_OFFSETS = {
-      'C': 0, 'C#': 1, 'DB': 1,
-      'D': 2, 'D#': 3, 'EB': 3,
-      'E': 4,
-      'F': 5, 'F#': 6, 'GB': 6,
-      'G': 7, 'G#': 8, 'AB': 8,
-      'A': 9, 'A#': 10, 'BB': 10,
-      'B': 11
-    };
-
-    /**
-     * 科学音名 (例: C3, G#4) や 日本式音名 (例: mid1C, hiA, hiC#) を
-     * MIDIノート番号相当の数値 (C4 = 60, G4 = 67, A4 = 69) に変換する関数
-     */
-    function pitchToMidi(pitchStr) {
-      if (!pitchStr || typeof pitchStr !== 'string') return null;
-      const raw = pitchStr.trim();
-      if (!raw || raw === '-') return null;
-
-      // 1. 日本式表記 (low / mid1 / mid2 / hi / hihi) のパース
-      const jpMatch = raw.match(/^(lowlow|low|mid1|mid2|hi|hihi)([A-Ga-g][#b♯♭]?)$/);
-      if (jpMatch) {
-        const prefix = jpMatch[1].toLowerCase();
-        const noteRaw = jpMatch[2].toUpperCase().replace('♯', '#').replace('♭', 'B');
-        const semitone = NOTE_OFFSETS[noteRaw];
-        if (semitone === undefined) return null;
-
-        // 日本式カラオケ音域は A (ラ) からオクターブ名称が切り替わる慣習に対応
-        // mid2A = A4(69) ではなく hiA = A4(69), mid2C = C4(60) ~ mid2G# = G#4(68)
-        let octaveBaseC = 4; // mid2 の C は C4
-        if (prefix === 'lowlow') octaveBaseC = 1;
-        else if (prefix === 'low') octaveBaseC = 2;
-        else if (prefix === 'mid1') octaveBaseC = 3;
-        else if (prefix === 'mid2') octaveBaseC = 4;
-        else if (prefix === 'hi') octaveBaseC = 5;
-        else if (prefix === 'hihi') octaveBaseC = 6;
-
-        // A, A#, B は1つ下のCオクターブに属する (例: hiA = A4, mid2A = A3)
-        if (semitone >= 9) {
-          octaveBaseC -= 1;
+    // --- スコア集計ヘルパー ---
+    function getBestScores(song) {
+      if (!song.history || song.history.length === 0) {
+        return { joy: null, dam: null, count: 0 };
+      }
+      let joyBest = null;
+      let damBest = null;
+      song.history.forEach(h => {
+        const sc = parseFloat(h.score);
+        if (h.machine === 'JOY') {
+          if (joyBest === null || sc > joyBest) joyBest = sc;
+        } else if (h.machine === 'DAM') {
+          if (damBest === null || sc > damBest) damBest = sc;
         }
-        return (octaveBaseC + 1) * 12 + semitone;
-      }
-
-      // 2. 科学音名表記 (C3, F#4, C5 等) のパース
-      const sciMatch = raw.match(/^([A-Ga-g][#b♯♭]?)(-?\d+)$/);
-      if (sciMatch) {
-        const noteName = sciMatch[1].toUpperCase().replace('♯', '#').replace('♭', 'B');
-        const octave = parseInt(sciMatch[2], 10);
-        const semitone = NOTE_OFFSETS[noteName];
-        if (semitone === undefined) return null;
-        return (octave + 1) * 12 + semitone;
-      }
-
-      return null;
+      });
+      return { joy: joyBest, dam: damBest, count: song.history.length };
     }
 
-    /**
-     * MIDI番号から「C4 / G4」または「mid2C / hiA」表記へフォーマット
-     */
-    function formatPitchDisplay(pitchStr) {
-      if (!pitchStr) return '-';
-      const midi = pitchToMidi(pitchStr);
-      if (midi === null) return pitchStr;
-
-      const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-      const semitone = ((midi % 12) + 12) % 12;
-      const octave = Math.floor(midi / 12) - 1;
-      const noteName = noteNames[semitone];
-
-      if (!useJapanesePitchNotation) {
-        return `${noteName}${octave}`;
-      }
-
-      // 日本式表記への変換 (A以上で切り替わり: A4=hiA, G4=mid2G)
-      let jpOctave = octave;
-      if (semitone >= 9) {
-        jpOctave += 1;
-      }
-      const prefixMap = {
-        1: 'lowlow',
-        2: 'low',
-        3: 'mid1',
-        4: 'mid2',
-        5: 'hi',
-        6: 'hihi'
-      };
-      const prefix = prefixMap[jpOctave] || `oct${octave}`;
-      return `${prefix}${noteName}`;
-    }
-
-    function togglePitchNotation() {
-      useJapanesePitchNotation = !useJapanesePitchNotation;
-      document.getElementById('notationLabel').textContent = useJapanesePitchNotation ? 'mid2G/hiA' : 'C4/G4';
-      renderView();
-    }
-
-    /**
-     * 音の高さに応じたバッジカラークラスを返す
-     */
-    function getPitchColorClass(pitchStr, isFalsetto = false) {
-      if (isFalsetto) {
-        return 'bg-purple-950/80 text-purple-300 border-purple-700/60';
-      }
-      const midi = pitchToMidi(pitchStr);
-      if (midi === null) return 'bg-slate-800 text-slate-300 border-slate-700';
-
-      // A#4 (70) 以上は高音レッド
-      if (midi >= 70) {
-        return 'bg-rose-950/80 text-rose-300 border-rose-700/60';
-      }
-      // G4 (67) 〜 A4 (69) は中高音アンバー
-      if (midi >= 67) {
-        return 'bg-amber-950/80 text-amber-300 border-amber-700/60';
-      }
-      // F#4 (66) 以下は歌いやすいエメラルド
-      return 'bg-emerald-950/70 text-emerald-300 border-emerald-700/50';
-    }
-
-    // ==========================================
-    // かな変換・50音行判定ヘルパー
-    // ==========================================
-    function katakanaToHiragana(str) {
-      if (!str) return '';
-      return str.replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60));
-    }
-
-    function getKanaRowLabel(readingStr) {
-      const hira = katakanaToHiragana((readingStr || '').trim());
-      if (!hira) return '他';
-      const firstChar = hira.charAt(0);
-      for (const row of KANA_ROWS) {
-        if (row.chars.includes(firstChar)) {
-          return row.label;
-        }
-      }
+    // --- 50音判定ヘルパー ---
+    function getKanaRow(reading) {
+      if (!reading) return '他';
+      const c = reading.charAt(0);
+      if (/[あ-おアイウエオ]/.test(c)) return 'あ';
+      if (/[か-こカ-コが-ごガ-ゴ]/.test(c)) return 'か';
+      if (/[さ-そサ-ソざ-ぞザ-ゾ]/.test(c)) return 'さ';
+      if (/[た-とタ-トだ-どダ-ドっッ]/.test(c)) return 'た';
+      if (/[な-のナ-ノ]/.test(c)) return 'な';
+      if (/[は-ほハ-ホば-ぼバ-ボぱ-ぽパ-ポ]/.test(c)) return 'は';
+      if (/[ま-もマ-モ]/.test(c)) return 'ま';
+      if (/[や-よヤ-ヨ]/.test(c)) return 'や';
+      if (/[ら-ろラ-ロ]/.test(c)) return 'ら';
+      if (/[わ-んワ-ン]/.test(c)) return 'わ';
       return '他';
     }
 
-    // ==========================================
-    // 検索・フィルター適用ロジック
-    // ==========================================
-    function getFilteredSongs() {
-      const query = katakanaToHiragana(document.getElementById('searchInput').value.trim().toLowerCase());
-      const maxHighPitch = document.getElementById('maxHighPitchSelect').value;
-      const falsettoFilter = document.getElementById('falsettoFilterSelect').value;
+    // --- レンダリング ---
+    function render() {
+      const container = document.getElementById('songs-container');
+      const emptyState = document.getElementById('empty-state');
+      const totalBadge = document.getElementById('total-songs-badge');
+      totalBadge.textContent = `${songDatabase.length}曲`;
 
-      const maxHighMidi = maxHighPitch === 'ALL' ? null : pitchToMidi(maxHighPitch);
-
-      // フィルターが有効かどうかのドット表示更新
-      const isFilterActive = maxHighPitch !== 'ALL' || falsettoFilter !== 'ALL' || scoreFilter !== 'ALL';
-      document.getElementById('activeFilterDot').classList.toggle('hidden', !isFilterActive);
-
-      return songs.map((song, originalIndex) => ({ ...song, _index: originalIndex })).filter(song => {
-        // 1. キーワード検索
-        if (query) {
-          const titleMatch = (song.title || '').toLowerCase().includes(query);
-          const artistMatch = (song.artist || '').toLowerCase().includes(query);
-          const readingMatch = katakanaToHiragana(song.reading || '').toLowerCase().includes(query);
-          const artistReadingMatch = katakanaToHiragana(song.artistReading || '').toLowerCase().includes(query);
-          if (!titleMatch && !artistMatch && !readingMatch && !artistReadingMatch) {
-            return false;
-          }
-        }
-
-        // 2. 地声最高音の上限フィルター
-        if (maxHighMidi !== null) {
-          const songHighMidi = pitchToMidi(song.high);
-          if (songHighMidi === null || songHighMidi > maxHighMidi) {
-            return false;
-          }
-        }
-
-        // 3. 裏声フィルター
-        const hasFalsetto = Boolean(song.falsetto && song.falsetto.trim() !== '');
-        if (falsettoFilter === 'NONE' && hasFalsetto) return false;
-        if (falsettoFilter === 'HAS' && !hasFalsetto) return false;
-
-        // 4. スコア記録フィルター
-        if (scoreFilter === 'JOY' && (song.joy === null || song.joy === undefined || song.joy === '')) return false;
-        if (scoreFilter === 'DAM' && (song.dam === null || song.dam === undefined || song.dam === '')) return false;
-
-        return true;
-      });
-    }
-
-    function handleSearchInput() {
-      const val = document.getElementById('searchInput').value;
-      document.getElementById('clearSearchBtn').classList.toggle('hidden', !val);
-      renderView();
-    }
-
-    function clearSearch() {
-      document.getElementById('searchInput').value = '';
-      document.getElementById('clearSearchBtn').classList.add('hidden');
-      renderView();
-    }
-
-    function toggleFilterPanel() {
-      const panel = document.getElementById('filterPanel');
-      panel.classList.toggle('hidden');
-    }
-
-    function setScoreFilter(type) {
-      scoreFilter = type;
-      const buttons = {
-        ALL: document.getElementById('scoreFilterAll'),
-        JOY: document.getElementById('scoreFilterJoy'),
-        DAM: document.getElementById('scoreFilterDam')
-      };
-      Object.keys(buttons).forEach(k => {
-        if (k === type) {
-          buttons[k].className = 'px-2 py-1 rounded-md bg-indigo-600 text-white font-semibold transition';
-        } else {
-          buttons[k].className = 'px-2 py-1 rounded-md text-slate-400 hover:text-white transition';
-        }
-      });
-      renderView();
-    }
-
-    function applyFilters() {
-      renderView();
-    }
-
-    function resetAllFilters() {
-      document.getElementById('maxHighPitchSelect').value = 'ALL';
-      document.getElementById('falsettoFilterSelect').value = 'ALL';
-      setScoreFilter('ALL');
-      clearSearch();
-    }
-
-    // ==========================================
-    // タブ切り替え・ランキング切り替え
-    // ==========================================
-    function switchTab(tab) {
-      currentTab = tab;
-
-      const tabs = {
-        kana: document.getElementById('tabBtnKana'),
-        artist: document.getElementById('tabBtnArtist'),
-        ranking: document.getElementById('tabBtnRanking')
-      };
-
-      Object.keys(tabs).forEach(k => {
-        if (k === tab) {
-          tabs[k].className = 'flex flex-col items-center justify-center py-1.5 rounded-xl text-indigo-400 bg-indigo-500/10 font-bold transition';
-        } else {
-          tabs[k].className = 'flex flex-col items-center justify-center py-1.5 rounded-xl text-slate-400 hover:text-slate-200 font-medium transition';
-        }
+      // 検索フィルタ
+      let filtered = songDatabase.filter(s => {
+        if (!searchQuery) return true;
+        const q = searchQuery.toLowerCase();
+        return (s.title && s.title.toLowerCase().includes(q)) ||
+               (s.artist && s.artist.toLowerCase().includes(q)) ||
+               (s.reading && s.reading.toLowerCase().includes(q)) ||
+               (s.artistReading && s.artistReading.toLowerCase().includes(q));
       });
 
-      document.getElementById('kanaJumpBar').classList.toggle('hidden', tab !== 'kana');
-      document.getElementById('rankingSubBar').classList.toggle('hidden', tab !== 'ranking');
-
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      renderView();
-    }
-
-    function setRankingType(type) {
-      rankingType = type;
-      const joyBtn = document.getElementById('rankBtnJoy');
-      const damBtn = document.getElementById('rankBtnDam');
-
-      if (type === 'joy') {
-        joyBtn.className = 'px-3.5 py-1 rounded-lg text-xs font-bold bg-blue-600 text-white shadow transition flex items-center gap-1.5';
-        damBtn.className = 'px-3.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition flex items-center gap-1.5';
-      } else {
-        damBtn.className = 'px-3.5 py-1 rounded-lg text-xs font-bold bg-rose-600 text-white shadow transition flex items-center gap-1.5';
-        joyBtn.className = 'px-3.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition flex items-center gap-1.5';
+      if (currentSyl !== 'ALL') {
+        filtered = filtered.filter(s => getKanaRow(s.reading) === currentSyl);
       }
-      renderView();
-    }
-
-    // ==========================================
-    // 画面描画メイン処理
-    // ==========================================
-    function renderView() {
-      const filtered = getFilteredSongs();
-
-      document.getElementById('totalCountBadge').textContent = `${songs.length}曲`;
-      document.getElementById('resultCountText').textContent =
-        filtered.length === songs.length
-          ? `全 ${songs.length} 曲`
-          : `絞り込み: ${filtered.length} / ${songs.length} 曲`;
-
-      const container = document.getElementById('songListContainer');
-      container.innerHTML = '';
 
       if (filtered.length === 0) {
-        container.innerHTML = `
-          <div class="text-center py-14 px-4 rounded-2xl bg-slate-900/50 border border-slate-800/80">
-            <i data-lucide="music-off" class="w-10 h-10 text-slate-600 mx-auto mb-2"></i>
-            <p class="text-sm font-bold text-slate-300">条件に一致する曲がありません</p>
-            <p class="text-xs text-slate-500 mt-1">検索ワードや音域フィルターを緩めてみてください</p>
-            <button onclick="resetAllFilters()" class="mt-4 px-4 py-2 rounded-xl bg-slate-800 text-indigo-400 text-xs font-bold hover:bg-slate-700 transition">
-              フィルターをリセット
-            </button>
-          </div>
-        `;
+        container.innerHTML = '';
+        emptyState.classList.remove('hidden');
         lucide.createIcons();
         return;
       }
+      emptyState.classList.add('hidden');
 
-      if (currentTab === 'kana') {
+      if (activeTab === 'kana') {
         renderKanaView(filtered, container);
-      } else if (currentTab === 'artist') {
+      } else if (activeTab === 'artist') {
         renderArtistView(filtered, container);
-      } else if (currentTab === 'ranking') {
-        renderRankingView(filtered, container);
+      } else if (activeTab === 'rank') {
+        renderRankView(filtered, container);
       }
 
       lucide.createIcons();
     }
 
-    // 1. 50音順ビュー
-    function renderKanaView(list, container) {
-      const sorted = [...list].sort((a, b) => (a.reading || '').localeCompare(b.reading || '', 'ja'));
+    function createSongCard(song) {
+      const best = getBestScores(song);
+      const card = document.createElement('div');
+      card.className = "bg-bgCard hover:bg-bgCardHover border border-slate-800 hover:border-slate-700/80 rounded-xl p-3.5 transition cursor-pointer shadow-sm active:scale-[0.99]";
+      card.onclick = () => openDetailModal(song.id);
+
+      card.innerHTML = `
+        <div class="flex items-start justify-between gap-2">
+          <div class="flex-1 min-w-0">
+            <h3 class="text-sm font-bold text-slate-100 truncate">${song.title}</h3>
+            <p class="text-xs text-slate-400 truncate mt-0.5">${song.artist}</p>
+          </div>
+          <div class="flex items-center gap-1 font-mono text-[11px] shrink-0">
+            <span class="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-300">低 ${song.low || '-'}</span>
+            <span class="px-1.5 py-0.5 rounded bg-amber-950/40 border border-amber-800/40 text-amber-400 font-bold">高 ${song.high || '-'}</span>
+            ${song.falsetto ? `<span class="px-1.5 py-0.5 rounded bg-purple-950/40 border border-purple-800/40 text-purple-400">裏 ${song.falsetto}</span>` : ''}
+          </div>
+        </div>
+
+        <div class="mt-3 pt-2.5 border-t border-slate-800/60 flex items-center justify-between text-xs font-mono">
+          <div class="flex items-center space-x-3">
+            <span class="flex items-center gap-1.5 text-blue-400">
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+              JOY: <span class="font-bold">${best.joy !== null ? best.joy.toFixed(3) : '-'}</span>
+            </span>
+            <span class="flex items-center gap-1.5 text-rose-400">
+              <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+              DAM: <span class="font-bold">${best.dam !== null ? best.dam.toFixed(3) : '-'}</span>
+            </span>
+          </div>
+          <span class="text-[10px] text-slate-500 font-sans flex items-center gap-0.5">
+            <i data-lucide="history" class="w-3 h-3"></i> ${best.count}回
+          </span>
+        </div>
+      `;
+      return card;
+    }
+
+    function renderKanaView(songs, container) {
+      container.innerHTML = '';
+      songs.sort((a, b) => (a.reading || '').localeCompare(b.reading || '', 'ja'));
 
       const groups = {};
-      sorted.forEach(song => {
-        const row = getKanaRowLabel(song.reading);
+      songs.forEach(s => {
+        const row = getKanaRow(s.reading);
         if (!groups[row]) groups[row] = [];
-        groups[row].push(song);
+        groups[row].push(s);
       });
 
-      // クイックジャンプバー生成
-      const allRows = [...KANA_ROWS.map(r => r.label), '他'];
-      const jumpBar = document.getElementById('kanaJumpBar');
-      jumpBar.innerHTML = allRows.map(label => {
-        const hasSongs = Boolean(groups[label] && groups[label].length > 0);
-        return `
-          <button
-            ${hasSongs ? `onclick="scrollToSection('kana-sec-${label}')"` : 'disabled'}
-            class="w-7 h-7 rounded-lg text-xs font-bold shrink-0 flex items-center justify-center transition ${
-              hasSongs
-                ? 'bg-slate-800/90 text-slate-200 hover:bg-indigo-600 hover:text-white border border-slate-700/80'
-                : 'bg-slate-900/40 text-slate-600 cursor-not-allowed'
-            }"
-          >${label}</button>
-        `;
-      }).join('');
-
-      allRows.forEach(label => {
-        if (!groups[label] || groups[label].length === 0) return;
-        const sectionEl = document.createElement('section');
-        sectionEl.id = `kana-sec-${label}`;
-        sectionEl.className = 'scroll-mt-36 space-y-2';
-        sectionEl.innerHTML = `
-          <div class="flex items-center gap-2 px-1 pt-1">
-            <span class="w-6 h-6 rounded-lg bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 text-xs font-extrabold flex items-center justify-center">${label}</span>
-            <h2 class="text-xs font-bold text-slate-300">${label}行</h2>
-            <span class="text-[11px] text-slate-500">(${groups[label].length})</span>
-            <div class="flex-1 border-b border-slate-800/80 ml-1"></div>
-          </div>
-          <div class="space-y-2">
-            ${groups[label].map(song => createSongCardHTML(song)).join('')}
+      const rowOrder = ['あ', 'か', 'さ', 'た', 'な', 'は', 'ま', 'や', 'ら', 'わ', '他'];
+      rowOrder.forEach(r => {
+        if (!groups[r] || groups[r].length === 0) return;
+        const sec = document.createElement('div');
+        sec.className = "space-y-2";
+        sec.innerHTML = `
+          <div class="flex items-center gap-2 pt-1">
+            <span class="w-5 h-5 rounded-full bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 text-xs font-bold flex items-center justify-center">${r}</span>
+            <span class="text-xs font-bold text-slate-400">${r}行 (${groups[r].length})</span>
           </div>
         `;
-        container.appendChild(sectionEl);
+        const list = document.createElement('div');
+        list.className = "space-y-2";
+        groups[r].forEach(song => list.appendChild(createSongCard(song)));
+        sec.appendChild(list);
+        container.appendChild(sec);
       });
     }
 
-    // 2. アーティスト別ビュー
-    function renderArtistView(list, container) {
-      const artistMap = new Map();
+    function renderArtistView(songs, container) {
+      container.innerHTML = '';
+      songs.sort((a, b) => (a.artistReading || a.artist || '').localeCompare(b.artistReading || b.artist || '', 'ja'));
 
-      list.forEach(song => {
-        const key = song.artist || '未設定';
-        if (!artistMap.has(key)) {
-          artistMap.set(key, {
-            artist: key,
-            artistReading: song.artistReading || key,
-            songs: []
-          });
-        }
-        artistMap.get(key).songs.push(song);
+      const groups = {};
+      songs.forEach(s => {
+        const key = s.artist || '不明';
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(s);
       });
 
-      const sortedArtists = Array.from(artistMap.values()).sort((a, b) =>
-        (a.artistReading || '').localeCompare(b.artistReading || '', 'ja')
-      );
+      Object.keys(groups).forEach(artist => {
+        const sec = document.createElement('div');
+        sec.className = "space-y-2";
+        sec.innerHTML = `
+          <div class="flex items-center justify-between pt-1">
+            <span class="text-xs font-bold text-indigo-400 flex items-center gap-1.5">
+              <i data-lucide="mic" class="w-3.5 h-3.5"></i>
+              ${artist}
+            </span>
+            <span class="text-[10px] text-slate-500 font-mono">${groups[artist].length}曲</span>
+          </div>
+        `;
+        const list = document.createElement('div');
+        list.className = "space-y-2";
+        groups[artist].forEach(song => list.appendChild(createSongCard(song)));
+        sec.appendChild(list);
+        container.appendChild(sec);
+      });
+    }
 
-      // 初回はすべて開いた状態にする
-      if (openArtistGroups.size === 0) {
-        sortedArtists.forEach(g => openArtistGroups.add(g.artist));
+    function renderRankView(songs, container) {
+      container.innerHTML = '';
+      const sorted = [...songs].sort((a, b) => {
+        const aBest = Math.max(getBestScores(a).joy || 0, getBestScores(a).dam || 0);
+        const bBest = Math.max(getBestScores(b).joy || 0, getBestScores(b).dam || 0);
+        return bBest - aBest;
+      });
+
+      const list = document.createElement('div');
+      list.className = "space-y-2";
+      sorted.forEach((song, idx) => {
+        const card = createSongCard(song);
+        if (idx === 0) card.classList.add('ring-1', 'ring-amber-500/50');
+        list.appendChild(card);
+      });
+      container.appendChild(list);
+    }
+
+    // --- 1. 曲詳細モーダル & Chart.js グラフ処理 ---
+    function openDetailModal(songId) {
+      currentSelectedSongId = songId;
+      const song = songDatabase.find(s => s.id === songId);
+      if (!song) return;
+
+      document.getElementById('detail-title').textContent = song.title;
+      document.getElementById('detail-artist').textContent = song.artist;
+      document.getElementById('detail-low').textContent = song.low || '-';
+      document.getElementById('detail-high').textContent = song.high || '-';
+      document.getElementById('detail-falsetto').textContent = song.falsetto || 'なし';
+
+      const best = getBestScores(song);
+      document.getElementById('detail-joy-best').textContent = best.joy !== null ? `${best.joy.toFixed(3)}点` : '-';
+      document.getElementById('detail-dam-best').textContent = best.dam !== null ? `${best.dam.toFixed(3)}点` : '-';
+
+      // 今日をデフォルト日付にセット
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('score-input-date').value = today;
+      document.getElementById('score-input-val').value = '';
+      document.getElementById('score-input-memo').value = '';
+
+      renderHistoryList(song);
+      renderChart(song);
+
+      document.getElementById('detail-modal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeDetailModal() {
+      document.getElementById('detail-modal').classList.add('hidden');
+      if (scoreChartInstance) {
+        scoreChartInstance.destroy();
+        scoreChartInstance = null;
       }
-
-      sortedArtists.forEach(group => {
-        group.songs.sort((a, b) => (a.reading || '').localeCompare(b.reading || '', 'ja'));
-        const isOpen = openArtistGroups.has(group.artist);
-        const safeArtistId = encodeURIComponent(group.artist);
-
-        const groupEl = document.createElement('div');
-        groupEl.className = 'rounded-2xl bg-slate-900/50 border border-slate-800/90 overflow-hidden';
-        groupEl.innerHTML = `
-          <button
-            onclick="toggleArtistGroup('${safeArtistId}')"
-            class="w-full px-4 py-3 flex items-center justify-between bg-slate-900/90 hover:bg-slate-800/70 transition text-left"
-          >
-            <div class="flex items-center gap-2.5 min-w-0">
-              <div class="w-8 h-8 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
-                <i data-lucide="user" class="w-4 h-4"></i>
-              </div>
-              <div class=" truncate">
-                <div class="text-sm font-bold text-white truncate">${escapeHTML(group.artist)}</div>
-                <div class="text-[10px] text-slate-400 truncate">${escapeHTML(group.artistReading)}</div>
-              </div>
-            </div>
-            <div class="flex items-center gap-2 shrink-0">
-              <span class="px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 text-xs font-bold border border-slate-700">${group.songs.length}曲</span>
-              <i data-lucide="${isOpen ? 'chevron-up' : 'chevron-down'}" class="w-4 h-4 text-slate-400"></i>
-            </div>
-          </button>
-          <div id="artist-body-${safeArtistId}" class="${isOpen ? 'p-2.5 space-y-2 border-t border-slate-800/70' : 'hidden'}">
-            ${group.songs.map(song => createSongCardHTML(song, { hideArtist: true })).join('')}
-          </div>
-        `;
-        container.appendChild(groupEl);
-      });
     }
 
-    function toggleArtistGroup(encodedArtist) {
-      const artist = decodeURIComponent(encodedArtist);
-      if (openArtistGroups.has(artist)) {
-        openArtistGroups.delete(artist);
-      } else {
-        openArtistGroups.add(artist);
-      }
-      renderView();
-    }
+    function renderHistoryList(song) {
+      const listEl = document.getElementById('history-list');
+      const countEl = document.getElementById('history-count');
+      const history = song.history ? [...song.history] : [];
+      countEl.textContent = history.length;
 
-    // 3. ランキングビュー
-    function renderRankingView(list, container) {
-      const key = rankingType; // 'joy' | 'dam'
-      const scored = list.filter(s => typeof s[key] === 'number' && !isNaN(s[key]));
-      const unscored = list.filter(s => typeof s[key] !== 'number' || isNaN(s[key]));
+      // 日付降順ソート
+      history.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-      scored.sort((a, b) => b[key] - a[key]);
-
-      if (scored.length === 0) {
-        container.innerHTML = `
-          <div class="text-center py-12 px-4 rounded-2xl bg-slate-900/50 border border-slate-800">
-            <p class="text-sm font-bold text-slate-300">${key === 'joy' ? 'JOYSOUND' : 'LIVE DAM'} の採点記録がある曲がありません</p>
-            <p class="text-xs text-slate-500 mt-1">曲カードをタップして採点スコアを記録してみましょう</p>
-          </div>
-        `;
+      if (history.length === 0) {
+        listEl.innerHTML = `<div class="text-center py-4 text-xs text-slate-500">まだスコア履歴がありません</div>`;
         return;
       }
 
-      const rankWrap = document.createElement('div');
-      rankWrap.className = 'space-y-2.5';
-      rankWrap.innerHTML = scored.map((song, idx) => createSongCardHTML(song, { rank: idx + 1 })).join('');
-      container.appendChild(rankWrap);
-
-      if (unscored.length > 0) {
-        const unscoredEl = document.createElement('div');
-        unscoredEl.className = 'pt-4 space-y-2';
-        unscoredEl.innerHTML = `
-          <div class="text-xs font-bold text-slate-500 px-1">未記録の曲 (${unscored.length}曲)</div>
-          ${unscored.map(song => createSongCardHTML(song)).join('')}
-        `;
-        container.appendChild(unscoredEl);
-      }
-    }
-
-    // ==========================================
-    // 曲カードHTML生成
-    // ==========================================
-    function createSongCardHTML(song, options = {}) {
-      const { hideArtist = false, rank = null } = options;
-
-      // ランクバッジ（1〜3位は王冠・メダル強調）
-      let rankBadgeHTML = '';
-      if (rank !== null) {
-        let badgeStyle = 'bg-slate-800 text-slate-300 border-slate-700';
-        if (rank === 1) badgeStyle = 'bg-gradient-to-br from-yellow-400 to-amber-600 text-slate-950 font-black shadow-md shadow-amber-500/20 border-yellow-300';
-        else if (rank === 2) badgeStyle = 'bg-gradient-to-br from-slate-200 to-slate-400 text-slate-950 font-black border-slate-200';
-        else if (rank === 3) badgeStyle = 'bg-gradient-to-br from-amber-600 to-orange-800 text-white font-black border-amber-500';
-
-        rankBadgeHTML = `
-          <div class="w-7 h-7 rounded-xl border ${badgeStyle} text-xs flex items-center justify-center shrink-0">
-            ${rank}
+      listEl.innerHTML = history.map(h => `
+        <div class="bg-slate-950/70 border border-slate-800/80 rounded-lg p-2.5 flex items-center justify-between text-xs">
+          <div class="space-y-0.5">
+            <div class="flex items-center gap-2">
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${h.machine === 'JOY' ? 'bg-blue-900/40 text-blue-400 border border-blue-800' : 'bg-rose-900/40 text-rose-400 border border-rose-800'}">${h.machine}</span>
+              <span class="font-mono text-slate-400 text-[11px]">${h.date}</span>
+              <span class="font-mono font-bold text-slate-100 text-sm">${parseFloat(h.score).toFixed(3)}点</span>
+            </div>
+            ${h.memo ? `<p class="text-[11px] text-slate-400">${h.memo}</p>` : ''}
           </div>
-        `;
-      }
-
-      // 音域バッジ
-      const lowText = formatPitchDisplay(song.low);
-      const highText = formatPitchDisplay(song.high);
-      const falsettoText = song.falsetto ? formatPitchDisplay(song.falsetto) : null;
-      const highColorClass = getPitchColorClass(song.high, false);
-
-      // スコアフォーマット (小数第3位)
-      const joyFormatted = (typeof song.joy === 'number' && !isNaN(song.joy)) ? song.joy.toFixed(3) : '-';
-      const damFormatted = (typeof song.dam === 'number' && !isNaN(song.dam)) ? song.dam.toFixed(3) : '-';
-
-      const isJoyHighlight = currentTab === 'ranking' && rankingType === 'joy' && joyFormatted !== '-';
-      const isDamHighlight = currentTab === 'ranking' && rankingType === 'dam' && damFormatted !== '-';
-
-      return `
-        <div
-          onclick="openEditModal(${song._index})"
-          class="group rounded-2xl bg-bgCard hover:bg-bgCardHover border border-slate-800/90 hover:border-slate-700 p-3.5 transition cursor-pointer active:scale-[0.99] shadow-sm"
-        >
-          <div class="flex items-start justify-between gap-2.5">
-            <!-- 左側: 順位＋曲名・アーティスト名 -->
-            <div class="flex items-center gap-2.5 min-w-0 flex-1">
-              ${rankBadgeHTML}
-              <div class="min-w-0 flex-1">
-                <h3 class="text-[15px] font-bold text-white leading-snug truncate group-hover:text-indigo-300 transition">
-                  ${escapeHTML(song.title)}
-                </h3>
-                ${
-                  !hideArtist
-                    ? `<p class="text-xs text-slate-400 truncate mt-0.5">${escapeHTML(song.artist)}</p>`
-                    : ''
-                }
-              </div>
-            </div>
-
-            <!-- 右側: 音域バッジ群 -->
-            <div class="flex items-center gap-1 shrink-0 flex-wrap justify-end">
-              <span class="px-2 py-0.5 rounded-lg bg-slate-800/90 border border-slate-700 text-slate-300 text-[11px] font-mono">
-                <span class="text-[9px] text-slate-400 mr-0.5">低</span>${escapeHTML(lowText)}
-              </span>
-              <span class="px-2 py-0.5 rounded-lg border ${highColorClass} text-[11px] font-mono font-bold">
-                <span class="text-[9px] opacity-75 mr-0.5">高</span>${escapeHTML(highText)}
-              </span>
-              ${
-                falsettoText
-                  ? `<span class="px-2 py-0.5 rounded-lg border bg-purple-950/80 text-purple-300 border-purple-700/60 text-[11px] font-mono font-semibold">
-                      <span class="text-[9px] opacity-75 mr-0.5">裏</span>${escapeHTML(falsettoText)}
-                    </span>`
-                  : ''
-              }
-            </div>
-          </div>
-
-          <!-- 下段: JOYSOUND / LIVE DAM 採点スコアバー -->
-          <div class="mt-2.5 pt-2 border-t border-slate-800/80 grid grid-cols-2 gap-2">
-            <div class="flex items-center justify-between px-2.5 py-1 rounded-xl ${
-              isJoyHighlight ? 'bg-blue-950/70 border border-blue-500/50' : 'bg-slate-900/80 border border-slate-800/90'
-            }">
-              <span class="text-[10px] font-extrabold tracking-wider text-blue-400 flex items-center gap-1">
-                <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>JOYSOUND
-              </span>
-              <span class="text-xs font-mono font-bold ${joyFormatted !== '-' ? 'text-white' : 'text-slate-600'}">
-                ${joyFormatted}${joyFormatted !== '-' ? '<span class="text-[10px] text-slate-400 ml-0.5">点</span>' : ''}
-              </span>
-            </div>
-
-            <div class="flex items-center justify-between px-2.5 py-1 rounded-xl ${
-              isDamHighlight ? 'bg-rose-950/70 border border-rose-500/50' : 'bg-slate-900/80 border border-slate-800/90'
-            }">
-              <span class="text-[10px] font-extrabold tracking-wider text-rose-400 flex items-center gap-1">
-                <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>LIVE DAM
-              </span>
-              <span class="text-xs font-mono font-bold ${damFormatted !== '-' ? 'text-white' : 'text-slate-600'}">
-                ${damFormatted}${damFormatted !== '-' ? '<span class="text-[10px] text-slate-400 ml-0.5">点</span>' : ''}
-              </span>
-            </div>
-          </div>
+          <button onclick="deleteScoreRecord('${h.id}')" class="p-1.5 text-slate-500 hover:text-rose-400 rounded transition">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
         </div>
-      `;
+      `).join('');
     }
 
-    function scrollToSection(id) {
-      const el = document.getElementById(id);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+    function renderChart(song) {
+      const ctx = document.getElementById('score-chart').getContext('2d');
+      if (scoreChartInstance) scoreChartInstance.destroy();
+
+      const history = song.history ? [...song.history] : [];
+      history.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      const labels = history.map(h => h.date.slice(5)); // MM-DD
+      const joyData = history.map(h => h.machine === 'JOY' ? h.score : null);
+      const damData = history.map(h => h.machine === 'DAM' ? h.score : null);
+
+      scoreChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'JOYSOUND',
+              data: joyData,
+              borderColor: '#3b82f6',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              spanGaps: true,
+              tension: 0.2,
+              pointRadius: 4,
+              pointBackgroundColor: '#3b82f6'
+            },
+            {
+              label: 'LIVE DAM',
+              data: damData,
+              borderColor: '#f43f5e',
+              backgroundColor: 'rgba(244, 63, 94, 0.1)',
+              spanGaps: true,
+              tension: 0.2,
+              pointRadius: 4,
+              pointBackgroundColor: '#f43f5e'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              min: 80,
+              max: 100,
+              grid: { color: 'rgba(51, 65, 85, 0.4)' },
+              ticks: { color: '#94a3b8', font: { size: 10 } }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { color: '#94a3b8', font: { size: 10 } }
+            }
+          },
+          plugins: {
+            legend: {
+              labels: { color: '#cbd5e1', font: { size: 10 } }
+            }
+          }
+        }
+      });
     }
 
-    // ==========================================
-    // 曲追加・編集モーダル操作
-    // ==========================================
-    function openEditModal(index = -1) {
-      const modal = document.getElementById('editModal');
-      const deleteBtn = document.getElementById('deleteSongBtn');
-      document.getElementById('editSongIndex').value = index;
+    // 新規スコア追加
+    document.getElementById('record-score-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const song = songDatabase.find(s => s.id === currentSelectedSongId);
+      if (!song) return;
 
-      if (index >= 0 && songs[index]) {
-        const s = songs[index];
-        document.getElementById('editModalTitle').innerHTML = `<i data-lucide="edit-3" class="w-5 h-5 text-indigo-400"></i><span>曲データの編集</span>`;
-        document.getElementById('inputTitle').value = s.title || '';
-        document.getElementById('inputReading').value = s.reading || '';
-        document.getElementById('inputArtist').value = s.artist || '';
-        document.getElementById('inputArtistReading').value = s.artistReading || '';
-        document.getElementById('inputLow').value = s.low || '';
-        document.getElementById('inputHigh').value = s.high || '';
-        document.getElementById('inputFalsetto').value = s.falsetto || '';
-        document.getElementById('inputJoy').value = s.joy !== null && s.joy !== undefined ? s.joy : '';
-        document.getElementById('inputDam').value = s.dam !== null && s.dam !== undefined ? s.dam : '';
+      const date = document.getElementById('score-input-date').value;
+      const machine = document.getElementById('score-input-machine').value;
+      const score = parseFloat(document.getElementById('score-input-val').value);
+      const memo = document.getElementById('score-input-memo').value.trim();
+
+      if (!song.history) song.history = [];
+      song.history.push({
+        id: 'h_' + Date.now(),
+        date: date,
+        machine: machine,
+        score: score,
+        memo: memo
+      });
+
+      saveToStorage();
+      renderHistoryList(song);
+      renderChart(song);
+      render(); // 背景リストの最高点表示を更新
+      lucide.createIcons();
+
+      document.getElementById('score-input-val').value = '';
+      document.getElementById('score-input-memo').value = '';
+    });
+
+    window.deleteScoreRecord = function(historyId) {
+      if (!confirm('このスコア記録を削除しますか？')) return;
+      const song = songDatabase.find(s => s.id === currentSelectedSongId);
+      if (!song || !song.history) return;
+
+      song.history = song.history.filter(h => h.id !== historyId);
+      saveToStorage();
+      renderHistoryList(song);
+      renderChart(song);
+      render();
+      lucide.createIcons();
+    };
+
+    // --- 2. 曲編集 / 新規追加モーダル処理 ---
+    function openEditModal(songId = null) {
+      const modal = document.getElementById('edit-modal');
+      const titleEl = document.getElementById('modal-form-title');
+      const deleteBtn = document.getElementById('btn-delete-song');
+
+      if (songId) {
+        const song = songDatabase.find(s => s.id === songId);
+        if (!song) return;
+        titleEl.textContent = '曲情報・音域の編集';
+        document.getElementById('form-song-id').value = song.id;
+        document.getElementById('form-title').value = song.title;
+        document.getElementById('form-reading').value = song.reading || '';
+        document.getElementById('form-artist').value = song.artist;
+        document.getElementById('form-artist-reading').value = song.artistReading || '';
+
+        populateSelect(document.getElementById('form-low'), song.low || 'C3');
+        populateSelect(document.getElementById('form-high'), song.high || 'G4');
+        populateSelect(document.getElementById('form-falsetto'), song.falsetto || '', true);
+
         deleteBtn.classList.remove('hidden');
       } else {
-        document.getElementById('editModalTitle').innerHTML = `<i data-lucide="plus-circle" class="w-5 h-5 text-indigo-400"></i><span>新しい曲を追加</span>`;
-        document.getElementById('songForm').reset();
+        titleEl.textContent = '新しい曲を追加';
+        document.getElementById('form-song-id').value = '';
+        document.getElementById('form-title').value = '';
+        document.getElementById('form-reading').value = '';
+        document.getElementById('form-artist').value = '';
+        document.getElementById('form-artist-reading').value = '';
+
+        populateSelect(document.getElementById('form-low'), 'C3');
+        populateSelect(document.getElementById('form-high'), 'G4');
+        populateSelect(document.getElementById('form-falsetto'), '', true);
+
         deleteBtn.classList.add('hidden');
       }
 
       modal.classList.remove('hidden');
-      lucide.createIcons();
     }
 
-    function closeEditModal() {
-      document.getElementById('editModal').classList.add('hidden');
-    }
-
-    function saveSongForm(e) {
+    document.getElementById('song-edit-form').addEventListener('submit', (e) => {
       e.preventDefault();
-      const idx = parseInt(document.getElementById('editSongIndex').value, 10);
+      const id = document.getElementById('form-song-id').value;
+      const title = document.getElementById('form-title').value.trim();
+      const reading = document.getElementById('form-reading').value.trim();
+      const artist = document.getElementById('form-artist').value.trim();
+      const artistReading = document.getElementById('form-artist-reading').value.trim();
+      const low = document.getElementById('form-low').value;
+      const high = document.getElementById('form-high').value;
+      const falsetto = document.getElementById('form-falsetto').value || null;
 
-      const joyRaw = document.getElementById('inputJoy').value.trim();
-      const damRaw = document.getElementById('inputDam').value.trim();
-      const falsettoRaw = document.getElementById('inputFalsetto').value.trim();
-
-      const newSong = {
-        title: document.getElementById('inputTitle').value.trim(),
-        artist: document.getElementById('inputArtist').value.trim(),
-        reading: katakanaToHiragana(document.getElementById('inputReading').value.trim()),
-        artistReading: katakanaToHiragana(document.getElementById('inputArtistReading').value.trim()),
-        low: document.getElementById('inputLow').value.trim() || '-',
-        high: document.getElementById('inputHigh').value.trim() || '-',
-        falsetto: falsettoRaw ? falsettoRaw : null,
-        joy: joyRaw !== '' ? parseFloat(joyRaw) : null,
-        dam: damRaw !== '' ? parseFloat(damRaw) : null
-      };
-
-      if (idx >= 0 && songs[idx]) {
-        songs[idx] = newSong;
-        showToast('曲データを更新しました');
+      if (id) {
+        // 既存更新
+        const song = songDatabase.find(s => s.id === id);
+        if (song) {
+          song.title = title;
+          song.reading = reading;
+          song.artist = artist;
+          song.artistReading = artistReading;
+          song.low = low;
+          song.high = high;
+          song.falsetto = falsetto;
+        }
       } else {
-        songs.push(newSong);
-        openArtistGroups.add(newSong.artist);
-        showToast('新しい曲を追加しました');
+        // 新規追加
+        songDatabase.push({
+          id: 's_' + Date.now(),
+          title: title,
+          reading: reading,
+          artist: artist,
+          artistReading: artistReading,
+          low: low,
+          high: high,
+          falsetto: falsetto,
+          history: []
+        });
       }
 
-      saveSongsData();
-      closeEditModal();
-      renderView();
-    }
-
-    function deleteCurrentSong() {
-      const idx = parseInt(document.getElementById('editSongIndex').value, 10);
-      if (idx >= 0 && songs[idx]) {
-        songs.splice(idx, 1);
-        saveSongsData();
-        closeEditModal();
-        renderView();
-        showToast('曲を削除しました');
+      saveToStorage();
+      document.getElementById('edit-modal').classList.add('hidden');
+      if (id && currentSelectedSongId === id) {
+        openDetailModal(id); // 詳細画面の表示も更新
       }
-    }
+      render();
+    });
 
-    // ==========================================
-    // JSONエクスポート・クリップボードコピー
-    // ==========================================
-    function openJsonModal() {
-      const formattedJson = `const defaultSongDatabase = ${JSON.stringify(songs, null, 2)};`;
-      document.getElementById('jsonExportArea').value = formattedJson;
-      document.getElementById('jsonModal').classList.remove('hidden');
-    }
+    document.getElementById('btn-delete-song').addEventListener('click', () => {
+      const id = document.getElementById('form-song-id').value;
+      if (!confirm('この曲を完全に削除しますか？スコア履歴も消去されます。')) return;
 
-    function closeJsonModal() {
-      document.getElementById('jsonModal').classList.add('hidden');
-    }
+      songDatabase = songDatabase.filter(s => s.id !== id);
+      saveToStorage();
+      document.getElementById('edit-modal').classList.add('hidden');
+      closeDetailModal();
+      render();
+    });
 
-    function copyJsonToClipboard() {
-      const textarea = document.getElementById('jsonExportArea');
-      textarea.select();
-      textarea.setSelectionRange(0, 99999);
-      document.execCommand('copy');
-      showToast('JSONコードをコピーしました！');
-    }
+    // --- イベントリスナー設定 ---
+    document.getElementById('btn-open-add-modal').addEventListener('click', () => openEditModal(null));
+    document.getElementById('btn-close-edit').addEventListener('click', () => document.getElementById('edit-modal').classList.add('hidden'));
 
-    function resetToDefaultDatabase() {
-      localStorage.removeItem(STORAGE_KEY);
-      songs = JSON.parse(JSON.stringify(defaultSongDatabase));
-      closeJsonModal();
-      renderView();
-      showToast('初期データにリセットしました');
-    }
+    document.getElementById('btn-open-edit').addEventListener('click', () => {
+      openEditModal(currentSelectedSongId);
+    });
+    document.getElementById('btn-close-detail').addEventListener('click', closeDetailModal);
 
-    function showToast(msg) {
-      const toast = document.getElementById('toast');
-      document.getElementById('toastMessage').textContent = msg;
-      toast.classList.remove('hidden');
-      setTimeout(() => {
-        toast.classList.add('hidden');
-      }, 2400);
-    }
+    // 検索入力
+    const searchInput = document.getElementById('search-input');
+    const clearBtn = document.getElementById('clear-search-btn');
+    searchInput.addEventListener('input', (e) => {
+      searchQuery = e.target.value.trim();
+      clearBtn.classList.toggle('hidden', searchQuery.length === 0);
+      render();
+    });
+    clearBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      searchQuery = '';
+      clearBtn.classList.add('hidden');
+      render();
+    });
 
-    function escapeHTML(str) {
-      if (!str) return '';
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    }
+    // 50音インデックスボタン
+    document.querySelectorAll('.syl-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.syl-btn').forEach(b => {
+          b.className = 'syl-btn px-2.5 py-1 rounded-md hover:bg-slate-800 whitespace-nowrap text-slate-400';
+        });
+        btn.className = 'syl-btn px-2.5 py-1 rounded-md bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 whitespace-nowrap font-bold';
+        currentSyl = btn.dataset.syl;
+        render();
+      });
+    });
+
+    // 下部タブ切り替え
+    const tabs = [
+      { id: 'tab-btn-kana', type: 'kana' },
+      { id: 'tab-btn-artist', type: 'artist' },
+      { id: 'tab-btn-rank', type: 'rank' }
+    ];
+    tabs.forEach(t => {
+      document.getElementById(t.id).addEventListener('click', () => {
+        activeTab = t.type;
+        tabs.forEach(ot => {
+          const el = document.getElementById(ot.id);
+          if (ot.type === activeTab) {
+            el.className = 'flex flex-col items-center justify-center py-1 text-indigo-400 font-semibold transition active:scale-95';
+          } else {
+            el.className = 'flex flex-col items-center justify-center py-1 text-slate-400 hover:text-slate-200 transition active:scale-95';
+          }
+        });
+        render();
+      });
+    });
+
+    // JSONモーダル
+    document.getElementById('btn-export-json').addEventListener('click', () => {
+      document.getElementById('json-textarea').value = JSON.stringify(songDatabase, null, 2);
+      document.getElementById('json-modal').classList.remove('hidden');
+    });
+    document.getElementById('btn-close-json').addEventListener('click', () => {
+      document.getElementById('json-modal').classList.add('hidden');
+    });
+    document.getElementById('btn-copy-json').addEventListener('click', () => {
+      navigator.clipboard.writeText(document.getElementById('json-textarea').value);
+      alert('クリップボードにJSONをコピーしました！');
+    });
+    document.getElementById('btn-import-json').addEventListener('click', () => {
+      try {
+        const parsed = JSON.parse(document.getElementById('json-textarea').value);
+        if (Array.isArray(parsed)) {
+          songDatabase = parsed;
+          saveToStorage();
+          render();
+          document.getElementById('json-modal').classList.add('hidden');
+          alert('データを取り込みました！');
+        }
+      } catch (e) {
+        alert('JSONの形式が正しくありません');
+      }
+    });
+
+    // 初期化実行
+    initData();
+    render();
   </script>
 </body>
 </html>
