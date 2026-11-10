@@ -405,7 +405,7 @@
   </div>
 
   <script>
-    // --- 音域定義とドロップダウン生成（A基準の完全ロジック） ---
+    // --- 音域定義とドロップダウン生成（A基準体系） ---
     const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
     const PITCH_OPTIONS = [];
 
@@ -415,12 +415,10 @@
           const note = NOTE_NAMES[i];
           const pitch = `${note}${oct}`;
 
-          // A1より低い音は除外
           if (oct === 1 && (note !== 'A' && note !== 'A#' && note !== 'B')) {
             continue;
           }
 
-          // Aで文字が切り替わる判定
           let prefix = '';
           if (oct === 1) {
             prefix = 'low';
@@ -465,115 +463,9 @@
       });
     }
 
-    // --- 初期データ（ご提供の最新データを完全内包） ---
-    const defaultSongDatabase = [
-      {
-        id: "s1",
-        title: "水平線",
-        artist: "back number",
-        reading: "すいへいせん",
-        artistReading: "ばっくなんばー",
-        low: "D3",
-        high: "G4",
-        falsetto: "C5",
-        history: [
-          { id: "h1", date: "2026-10-15", machine: "JOY", score: 91.82, memo: "歌い始め" },
-          { id: "h2", date: "2026-10-28", machine: "JOY", score: 93.353, memo: "サビの音程安定" },
-          { id: "h3", date: "2026-11-02", machine: "DAM", score: 88.894, memo: "精密採点Ai" }
-        ]
-      },
-      {
-        id: "s2",
-        title: "世界に一つだけの花",
-        artist: "槇原敬之",
-        reading: "せかいにひとつだけのはな",
-        artistReading: "まきはらのりゆき",
-        low: "E3",
-        high: "E4",
-        falsetto: null,
-        history: [
-          { id: "h4", date: "2026-09-20", machine: "JOY", score: 94.2, memo: "" },
-          { id: "h5", date: "2026-10-10", machine: "JOY", score: 96.442, memo: "自己ベスト" },
-          { id: "h6", date: "2026-10-25", machine: "DAM", score: 89.636, memo: "" }
-        ]
-      },
-      {
-        id: "s3",
-        title: "奏（かなで）",
-        artist: "スキマスイッチ",
-        reading: "かなで",
-        artistReading: "すきますいっち",
-        low: "D3",
-        high: "G#4",
-        falsetto: "A#4",
-        history: []
-      },
-      {
-        id: "s4",
-        title: "小さな恋のうた",
-        artist: "MONGOL800",
-        reading: "ちいさなこいのうた",
-        artistReading: "もんごるはっぴゃく",
-        low: "A2",
-        high: "E4",
-        falsetto: null,
-        history: []
-      },
-      {
-        id: "s5",
-        title: "さよならエレジー",
-        artist: "菅田将暉",
-        reading: "さよならえれじー",
-        artistReading: "すだまさき",
-        low: "D3",
-        high: "F#4",
-        falsetto: null,
-        history: [
-          { id: "h11", date: "2026-10-14", machine: "JOY", score: 96.012, memo: "" },
-          { id: "h12", date: "2026-11-01", machine: "DAM", score: 91.5, memo: "" }
-        ]
-      },
-      {
-        id: "s_1794304597811",
-        title: "ドラえもん",
-        reading: "どらえもん",
-        artist: "星野源",
-        artistReading: "ほしのげん",
-        low: "C3",
-        high: "G4",
-        falsetto: null,
-        history: []
-      },
-      {
-        id: "s_1794310063695",
-        title: "栄光の架橋",
-        reading: "えいこうのかけはし",
-        artist: "ゆず",
-        artistReading: "ゆず",
-        low: "B2",
-        high: "A4",
-        falsetto: null,
-        history: [
-          { id: "h_1794310173001", date: "2026-11-03", machine: "DAM", score: 88.168, memo: "しゃくり22、こぶし5、フォール4、ビブラート6" },
-          { id: "h_1794310205406", date: "2026-11-10", machine: "DAM", score: 88.255, memo: "" }
-        ]
-      },
-      {
-        id: "s_1794310399859",
-        title: "全力少年",
-        reading: "ぜんりょくしょうねん",
-        artist: "スキマスイッチ",
-        artistReading: "すきますいっち",
-        low: "D3",
-        high: "A4",
-        falsetto: null,
-        history: []
-      }
-    ];
-
-    // --- State 管理（一元化・保存漏れ防止） ---
-    let songDatabase = [];          // メインの曲データベース
-    let backupSongDatabase = null;  // 一時参照モード時の退避用
+    // --- State 管理 ---
+    let songDatabase = [];
+    let backupSongDatabase = null;
     let isJsonViewingMode = false;
     let activeTab = 'kana';
     let currentSyl = 'ALL';
@@ -584,22 +476,20 @@
 
     const STORAGE_KEY = 'my_karaoke_data_v2';
 
-    // 初期化：ローカルストレージから確実に読み込む
     function initData() {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         try {
           songDatabase = JSON.parse(stored);
         } catch (e) {
-          songDatabase = defaultSongDatabase;
+          songDatabase = [];
         }
       } else {
-        songDatabase = defaultSongDatabase;
+        songDatabase = [];
       }
       saveToStorage();
     }
 
-    // 保存：曲追加・編集・採点追加時に必ず実行され、LocalStorageにリアルタイム上書き
     function saveToStorage() {
       if (!isJsonViewingMode) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(songDatabase));
@@ -778,32 +668,50 @@
       });
     }
 
+    // --- アーティスト別表示（アーティスト50音順 ＆ アーティスト内楽曲50音順） ---
     function renderArtistView(songs, container) {
       container.innerHTML = '';
-      songs.sort((a, b) => (a.artistReading || a.artist || '').localeCompare(b.artistReading || b.artist || '', 'ja'));
 
-      const groups = {};
+      // 1. アーティストごとにグループ化
+      const groups = new Map();
       songs.forEach(s => {
-        const key = s.artist || '不明';
-        if (!groups[key]) groups[key] = [];
-        groups[key].push(s);
+        const artist = s.artist || '不明';
+        const artistReading = s.artistReading || s.artist || '';
+        if (!groups.has(artist)) {
+          groups.set(artist, {
+            artist: artist,
+            artistReading: artistReading,
+            songs: []
+          });
+        }
+        groups.get(artist).songs.push(s);
       });
 
-      Object.keys(groups).forEach(artist => {
+      // 2. アーティストをよみがな（50音順）でソート
+      const sortedArtistGroups = Array.from(groups.values()).sort((a, b) => {
+        const keyA = a.artistReading || a.artist;
+        const keyB = b.artistReading || b.artist;
+        return keyA.localeCompare(keyB, 'ja');
+      });
+
+      // 3. 各アーティスト内の曲も曲名よみがな（50音順）でソートして描画
+      sortedArtistGroups.forEach(group => {
+        group.songs.sort((a, b) => (a.reading || a.title || '').localeCompare(b.reading || b.title || '', 'ja'));
+
         const sec = document.createElement('div');
         sec.className = "space-y-2";
         sec.innerHTML = `
           <div class="flex items-center justify-between pt-1">
             <span class="text-xs font-bold text-indigo-400 flex items-center gap-1.5">
               <i data-lucide="mic" class="w-3.5 h-3.5"></i>
-              ${artist}
+              ${group.artist}
             </span>
-            <span class="text-[10px] text-slate-500 font-mono">${groups[artist].length}曲</span>
+            <span class="text-[10px] text-slate-500 font-mono">${group.songs.length}曲</span>
           </div>
         `;
         const list = document.createElement('div');
         list.className = "space-y-2";
-        groups[artist].forEach(song => list.appendChild(createSongCard(song)));
+        group.songs.forEach(song => list.appendChild(createSongCard(song)));
         sec.appendChild(list);
         container.appendChild(sec);
       });
@@ -971,7 +879,6 @@
       });
     }
 
-    // スコア追加（確実にLocalStorageへ同期上書き保存）
     document.getElementById('record-score-form').addEventListener('submit', (e) => {
       e.preventDefault();
       const song = songDatabase.find(s => s.id === currentSelectedSongId);
@@ -991,7 +898,7 @@
         memo: memo
       });
 
-      saveToStorage(); // 即座に永続保存
+      saveToStorage();
       renderHistoryList(song);
       renderChart(song);
       render();
@@ -1007,14 +914,14 @@
       if (!song || !song.history) return;
 
       song.history = song.history.filter(h => h.id !== historyId);
-      saveToStorage(); // 即座に永続保存
+      saveToStorage();
       renderHistoryList(song);
       renderChart(song);
       render();
       lucide.createIcons();
     };
 
-    // --- 2. 曲編集 / 新規追加（確実にLocalStorageへ同期上書き保存） ---
+    // --- 2. 曲編集 / 新規追加 ---
     function openEditModal(songId = null) {
       updateExistingArtistDropdown();
       const modal = document.getElementById('edit-modal');
@@ -1077,7 +984,6 @@
           song.falsetto = falsetto;
         }
       } else {
-        // 新規追加曲を songDatabase に直接追加
         songDatabase.push({
           id: 's_' + Date.now(),
           title: title,
@@ -1091,7 +997,7 @@
         });
       }
 
-      saveToStorage(); // 即座に永続保存
+      saveToStorage();
       document.getElementById('edit-modal').classList.add('hidden');
       if (id && currentSelectedSongId === id) {
         openDetailModal(id);
@@ -1104,7 +1010,7 @@
       if (!confirm('この曲を削除しますか？スコア履歴も消去されます。')) return;
 
       songDatabase = songDatabase.filter(s => s.id !== id);
-      saveToStorage(); // 即座に永続保存
+      saveToStorage();
       document.getElementById('edit-modal').classList.add('hidden');
       closeDetailModal();
       render();
@@ -1162,10 +1068,10 @@
       reader.readAsText(file);
     });
 
-    // C. 一時参照モード（ローカルデータを退避保護）
+    // C. 一時参照モード
     document.getElementById('btn-file-temp-view').addEventListener('click', () => {
       if (!selectedFileJsonData) return;
-      backupSongDatabase = [...songDatabase]; // 元のデータを退避
+      backupSongDatabase = [...songDatabase];
       songDatabase = selectedFileJsonData;
       isJsonViewingMode = true;
       jsonBanner.classList.remove('hidden');
@@ -1174,7 +1080,7 @@
       alert('ファイルを「一時参照モード」で開きました。\nローカルデータは安全に保護されています。');
     });
 
-    // D. ローカルに完全取込（永続保存）
+    // D. ローカルに完全取込
     document.getElementById('btn-file-import-permanent').addEventListener('click', () => {
       if (!selectedFileJsonData) return;
       if (!confirm('端末のローカルデータをこのファイルの内容で完全に上書きしますか？')) return;
@@ -1183,13 +1089,13 @@
       isJsonViewingMode = false;
       backupSongDatabase = null;
       jsonBanner.classList.add('hidden');
-      saveToStorage(); // 永続保存
+      saveToStorage();
       fileModal.classList.add('hidden');
       render();
       alert('ファイルの内容をローカルに完全取り込みました！');
     });
 
-    // 一時参照モード終了（退避したローカル復帰）
+    // 一時参照モード終了
     document.getElementById('btn-exit-json-mode').addEventListener('click', () => {
       if (backupSongDatabase) {
         songDatabase = backupSongDatabase;
