@@ -13,7 +13,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- Chart.js (スコア推移グラフ用) -->
+  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
@@ -63,9 +63,9 @@
   <!-- JSON参照モード時の警告バナー -->
   <div id="json-mode-banner" class="hidden bg-amber-500/20 border-b border-amber-500/40 px-4 py-2 sticky top-0 z-40 backdrop-blur-md">
     <div class="max-w-2xl mx-auto flex items-center justify-between gap-2">
-      <div class="flex items-center gap-1.5 text-xs text-amber-300 font-medium">
-        <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-400 shrink-0"></i>
-        <span>JSON一時参照中（ローカルデータ保護中）</span>
+      <div class="flex items-center gap-1.5 text-xs text-amber-300 font-medium truncate">
+        <i data-lucide="file-warning" class="w-4 h-4 text-amber-400 shrink-0"></i>
+        <span class="truncate">ファイル一時参照中（ローカル保護中）</span>
       </div>
       <button id="btn-exit-json-mode" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-xs transition shrink-0 active:scale-95">
         ローカルに戻る
@@ -89,9 +89,9 @@
         </div>
       </div>
       <div class="flex items-center space-x-2">
-        <button id="btn-export-json" class="p-2 text-xs bg-slate-800/80 border border-slate-700 hover:bg-slate-700 text-slate-300 rounded-lg flex items-center gap-1 transition">
-          <i data-lucide="file-json" class="w-3.5 h-3.5"></i>
-          <span>JSON</span>
+        <button id="btn-open-file-modal" class="p-2 text-xs bg-slate-800/80 border border-slate-700 hover:bg-slate-700 text-slate-300 rounded-lg flex items-center gap-1.5 transition">
+          <i data-lucide="folder-cog" class="w-3.5 h-3.5 text-indigo-400"></i>
+          <span>ファイル</span>
         </button>
         <button id="btn-open-add-modal" class="px-3 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg shadow-md shadow-indigo-600/30 flex items-center gap-1 transition active:scale-95">
           <i data-lucide="plus" class="w-4 h-4"></i>
@@ -131,9 +131,7 @@
 
   <!-- メインコンテンツ -->
   <main class="max-w-2xl mx-auto w-full px-4 pt-3 flex-1">
-    <div id="songs-container" class="space-y-3">
-      <!-- JavaScriptで動的生成 -->
-    </div>
+    <div id="songs-container" class="space-y-3"></div>
     <div id="empty-state" class="hidden py-16 text-center text-slate-500 text-xs">
       <i data-lucide="music-4" class="w-10 h-10 mx-auto mb-2 text-slate-600"></i>
       一致する曲が見つかりませんでした
@@ -161,7 +159,6 @@
   <!-- 1. 曲詳細＆スコア履歴モーダル -->
   <div id="detail-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
     <div class="bg-slate-900 border border-slate-700/80 w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl">
-      <!-- 詳細ヘッダー -->
       <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/80 sticky top-0 z-10">
         <div class="min-w-0 pr-2">
           <h2 id="detail-title" class="text-base font-bold text-slate-100 truncate"></h2>
@@ -178,13 +175,12 @@
         </div>
       </div>
 
-      <!-- 詳細スクロールコンテンツ -->
       <div class="overflow-y-auto p-4 space-y-4 custom-scroll">
         <!-- 音域サマリー -->
         <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
           <div class="text-[11px] font-semibold text-slate-400 mb-2 flex items-center justify-between">
             <span>音域データ</span>
-            <span class="text-[10px] text-slate-500">中央ド = C4 (mid2C)</span>
+            <span class="text-[10px] text-slate-500">C4 = mid2C (中央ド)</span>
           </div>
           <div class="grid grid-cols-3 gap-2 text-center">
             <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
@@ -205,11 +201,11 @@
         <!-- 自己ベストスコア -->
         <div class="grid grid-cols-2 gap-2">
           <div class="bg-blue-950/30 border border-blue-900/50 rounded-xl p-2.5 text-center">
-            <span class="text-[10px] text-blue-400 font-semibold block mb-0.5">JOYSOUND 自己ベスト</span>
+            <span class="text-[10px] text-blue-400 font-semibold block mb-0.5">JOYSOUND 最高</span>
             <span id="detail-joy-best" class="text-base font-mono font-bold text-blue-300">-</span>
           </div>
           <div class="bg-rose-950/30 border border-rose-900/50 rounded-xl p-2.5 text-center">
-            <span class="text-[10px] text-rose-400 font-semibold block mb-0.5">LIVE DAM 自己ベスト</span>
+            <span class="text-[10px] text-rose-400 font-semibold block mb-0.5">LIVE DAM 最高</span>
             <span id="detail-dam-best" class="text-base font-mono font-bold text-rose-300">-</span>
           </div>
         </div>
@@ -225,14 +221,13 @@
           </div>
         </div>
 
-        <!-- 新しい点数を記録するフォーム（被りを完全解消） -->
+        <!-- スコア記録フォーム -->
         <div class="bg-indigo-950/20 border border-indigo-900/40 rounded-xl p-3 space-y-3">
           <h3 class="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
             <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
             新しいスコアを記録
           </h3>
           <form id="record-score-form" class="space-y-3">
-            <!-- 機種選択ボタン（タップで切り替え） -->
             <div>
               <label class="text-[10px] text-slate-400 block mb-1">採点機種</label>
               <div class="grid grid-cols-2 gap-2">
@@ -248,7 +243,6 @@
               <input type="hidden" id="score-input-machine" value="JOY">
             </div>
 
-            <!-- 日付と点数（2列構成で十分な横幅を確保） -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div>
                 <label class="text-[10px] text-slate-400 block mb-1">歌唱日</label>
@@ -260,10 +254,9 @@
               </div>
             </div>
 
-            <!-- メモ -->
             <div>
               <label class="text-[10px] text-slate-400 block mb-1">メモ（任意）</label>
-              <input type="text" id="score-input-memo" placeholder="例: 原キー、キー-2、サビ裏声 など" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-indigo-500">
+              <input type="text" id="score-input-memo" placeholder="例: しゃくり22、こぶし5、フォール4、ビブラート6 など" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-indigo-500">
             </div>
 
             <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition shadow-md shadow-indigo-600/30 active:scale-98">
@@ -272,7 +265,6 @@
           </form>
         </div>
 
-        <!-- 履歴一覧 -->
         <div class="space-y-2">
           <h3 class="text-xs font-bold text-slate-300 flex items-center justify-between">
             <span>過去の歌唱履歴 (<span id="history-count">0</span>件)</span>
@@ -306,7 +298,6 @@
           <input type="text" id="form-reading" required placeholder="例: すいへいせん" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
         </div>
 
-        <!-- 既出アーティストから選択 -->
         <div class="bg-slate-950/70 p-3 rounded-xl border border-slate-800 space-y-2">
           <div>
             <label class="text-[11px] font-semibold text-indigo-400 block mb-1 flex items-center justify-between">
@@ -330,11 +321,11 @@
           </div>
         </div>
 
-        <!-- 音域ドロップダウン選択 -->
+        <!-- 音域ドロップダウン（A基準） -->
         <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2.5">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-slate-300">音域設定</span>
-            <span class="text-[10px] text-slate-500">中央ド = C4</span>
+            <span class="text-xs font-bold text-slate-300">音域設定（A基準体系）</span>
+            <span class="text-[10px] text-slate-500">C4 = mid2C (中央ド)</span>
           </div>
 
           <div>
@@ -365,84 +356,89 @@
     </div>
   </div>
 
-  <!-- 3. JSONモーダル（一時参照モード対応） -->
-  <div id="json-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700/80 w-full max-w-lg rounded-2xl p-4 flex flex-col space-y-3 shadow-2xl">
-      <div class="flex items-center justify-between">
-        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-1.5">
-          <i data-lucide="database" class="w-4 h-4 text-indigo-400"></i>
-          JSONデータ管理
+  <!-- 3. ファイル管理モーダル -->
+  <div id="file-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700/80 w-full max-w-md rounded-2xl p-5 flex flex-col space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+          <i data-lucide="folder-cog" class="w-4 h-4 text-indigo-400"></i>
+          JSONファイル管理
         </h3>
-        <button id="btn-close-json" class="p-1 text-slate-400 hover:text-white">
+        <button id="btn-close-file-modal" class="p-1 text-slate-400 hover:text-white">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
 
-      <p class="text-[11px] text-slate-400 leading-relaxed">
-        バックアップのコピー、または外部JSONの読み込みが可能です。「一時参照」を行うと、現在の端末データを上書きせず安全に閲覧できます。
-      </p>
+      <!-- ダウンロード（上書き用ファイル名固定） -->
+      <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-2">
+        <h4 class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+          <i data-lucide="download" class="w-3.5 h-3.5 text-emerald-400"></i>
+          1. ファイルを書き出す（karaoke.json）
+        </h4>
+        <p class="text-[11px] text-slate-400">現在の全データを「karaoke.json」としてダウンロード保存します。</p>
+        <button id="btn-download-json-file" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-md shadow-emerald-600/20 active:scale-98">
+          <i data-lucide="download" class="w-3.5 h-3.5"></i>
+          <span>karaoke.json をダウンロード</span>
+        </button>
+      </div>
 
-      <textarea id="json-textarea" class="w-full h-52 bg-slate-950 border border-slate-700 rounded-xl p-3 text-[11px] font-mono text-slate-300 resize-none focus:outline-none"></textarea>
+      <!-- ファイルインポート -->
+      <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-3">
+        <h4 class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+          <i data-lucide="upload" class="w-3.5 h-3.5 text-indigo-400"></i>
+          2. ファイルを選択して読み込む
+        </h4>
+        <p class="text-[11px] text-slate-400">端末内のJSONファイル（`.json`）を選択してください。</p>
 
-      <div class="space-y-2 pt-1">
-        <div class="grid grid-cols-2 gap-2">
-          <button id="btn-view-temp-json" class="px-3 py-2 bg-amber-600/30 hover:bg-amber-600/40 text-amber-300 border border-amber-500/50 rounded-xl text-xs font-bold transition">
-            JSONを一時参照する
+        <input type="file" id="json-file-input" accept=".json,application/json" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700 cursor-pointer">
+
+        <div id="file-action-buttons" class="hidden grid grid-cols-2 gap-2 pt-1">
+          <button id="btn-file-temp-view" class="py-2.5 px-3 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-bold transition">
+            一時参照（保護）
           </button>
-          <button id="btn-import-json-permanent" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-medium transition">
+          <button id="btn-file-import-permanent" class="py-2.5 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-md shadow-indigo-600/20">
             ローカルに完全取込
           </button>
         </div>
-        <button id="btn-copy-json" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-600/30 transition">
-          現在のJSONをコピー
-        </button>
       </div>
     </div>
   </div>
 
   <script>
-    // --- 音域定義とドロップダウン生成 (A1〜C6) ---
+    // --- 音域定義とドロップダウン生成（A基準の完全ロジック） ---
     const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
     const PITCH_OPTIONS = [];
 
     function generatePitchOptions() {
-      // 半音ごとのMIDIノート番号（C1=24 〜 C6=84）
       for (let oct = 1; oct <= 6; oct++) {
         for (let i = 0; i < 12; i++) {
           const note = NOTE_NAMES[i];
           const pitch = `${note}${oct}`;
 
-          // カラオケ呼称の判定 (A4=hiA基準)
-          let label = pitch;
-          
-          if (oct === 1 && (note === 'A' || note === 'A#' || note === 'B')) {
-            label += ` (lowlow${note})`;
+          // A1より低い音は除外
+          if (oct === 1 && (note !== 'A' && note !== 'A#' && note !== 'B')) {
+            continue;
+          }
+
+          // Aで文字が切り替わる判定
+          let prefix = '';
+          if (oct === 1) {
+            prefix = 'low';
           } else if (oct === 2) {
-            if (note === 'A' || note === 'A#' || note === 'B') {
-              label += ` (low${note})`;
-            } else {
-              label += ` (lowlow${note})`;
-            }
+            prefix = (note === 'A' || note === 'A#' || note === 'B') ? 'mid1' : 'low';
           } else if (oct === 3) {
-            if (note === 'A' || note === 'A#' || note === 'B') {
-              label += ` (mid1${note})`;
-            } else {
-              label += ` (low${note})`;
-            }
+            prefix = (note === 'A' || note === 'A#' || note === 'B') ? 'mid2' : 'mid1';
           } else if (oct === 4) {
-            if (note === 'A' || note === 'A#' || note === 'B') {
-              label += ` (hi${note})`; // ← ここで A4 が確実に hiA になります
-            } else {
-              label += (pitch === 'C4') ? ' (mid2C:中央ド)' : ` (mid2${note})`;
-            }
+            prefix = (note === 'A' || note === 'A#' || note === 'B') ? 'hi' : 'mid2';
           } else if (oct === 5) {
-            if (note === 'A' || note === 'A#' || note === 'B') {
-              label += ` (hihi${note})`;
-            } else {
-              label += ` (hi${note})`;
-            }
+            prefix = (note === 'A' || note === 'A#' || note === 'B') ? 'hihi' : 'hi';
           } else if (oct === 6 && note === 'C') {
-            label += ` (hihiC)`;
+            prefix = 'hihi';
+          }
+
+          let label = `${pitch} (${prefix}${note})`;
+          if (pitch === 'C4') {
+            label = `${pitch} (mid2C:中央ド)`;
           }
 
           PITCH_OPTIONS.push({ value: pitch, label: label });
@@ -469,90 +465,144 @@
       });
     }
 
-    // --- 初期データベース（全曲0点・履歴なし） ---
+    // --- 初期データ（ご提供の最新データを完全内包） ---
     const defaultSongDatabase = [
-      { id: "s1", title: "水平線", artist: "back number", reading: "すいへいせん", artistReading: "ばっくなんばー", low: "D3", high: "G4", falsetto: "C5", history: [] },
-      { id: "s2", title: "世界に一つだけの花", artist: "槇原敬之", reading: "せかいにひとつだけのはな", artistReading: "まきはらのりゆき", low: "E3", high: "E4", falsetto: null, history: [] },
-      { id: "s3", title: "奏（かなで）", artist: "スキマスイッチ", reading: "かなで", artistReading: "すきますいっち", low: "C3", high: "G4", falsetto: "A4", history: [] },
-      { id: "s4", title: "小さな恋のうた", artist: "MONGOL800", reading: "ちいさなこいのうた", artistReading: "もんごるはっぴゃく", low: "A2", high: "E4", falsetto: null, history: [] },
-      { id: "s5", title: "さよならエレジー", artist: "菅田将暉", reading: "さよならえれじー", artistReading: "すだまさき", low: "D3", high: "F#4", falsetto: null, history: [] },
-      { id: "s6", title: "チェリー", artist: "スピッツ", reading: "ちぇりー", artistReading: "すぴっつ", low: "C3", high: "G4", falsetto: null, history: [] },
-      { id: "s7", title: "天体観測", artist: "BUMP OF CHICKEN", reading: "てんたいかんそく", artistReading: "ばんぷおぶちきん", low: "D#3", high: "G#4", falsetto: null, history: [] },
-      { id: "s8", title: "Pretender", artist: "Official髭男dism", reading: "ぷりてんだー", artistReading: "おふぃしゃるひげだんでぃずむ", low: "F3", high: "A#4", falsetto: "C#5", history: [] },
-      { id: "s9", title: "Lemon", artist: "米津玄師", reading: "れもん", artistReading: "よねづけんし", low: "B2", high: "G#4", falsetto: "B4", history: [] },
-      { id: "s10", title: "ひまわりの約束", artist: "秦基博", reading: "ひまわりのやくそく", artistReading: "はたもとひろ", low: "C3", high: "G4", falsetto: "A#4", history: [] },
-      { id: "s11", title: "ケセラセラ", artist: "Mrs. GREEN APPLE", reading: "けせらせら", artistReading: "みせすぐりーんあっぷる", low: "C3", high: "C5", falsetto: "E5", history: [] },
-      { id: "s12", title: "高嶺の花子さん", artist: "back number", reading: "たかねのはなこさん", artistReading: "ばっくなんばー", low: "C#3", high: "A4", falsetto: "B4", history: [] }
+      {
+        id: "s1",
+        title: "水平線",
+        artist: "back number",
+        reading: "すいへいせん",
+        artistReading: "ばっくなんばー",
+        low: "D3",
+        high: "G4",
+        falsetto: "C5",
+        history: [
+          { id: "h1", date: "2026-10-15", machine: "JOY", score: 91.82, memo: "歌い始め" },
+          { id: "h2", date: "2026-10-28", machine: "JOY", score: 93.353, memo: "サビの音程安定" },
+          { id: "h3", date: "2026-11-02", machine: "DAM", score: 88.894, memo: "精密採点Ai" }
+        ]
+      },
+      {
+        id: "s2",
+        title: "世界に一つだけの花",
+        artist: "槇原敬之",
+        reading: "せかいにひとつだけのはな",
+        artistReading: "まきはらのりゆき",
+        low: "E3",
+        high: "E4",
+        falsetto: null,
+        history: [
+          { id: "h4", date: "2026-09-20", machine: "JOY", score: 94.2, memo: "" },
+          { id: "h5", date: "2026-10-10", machine: "JOY", score: 96.442, memo: "自己ベスト" },
+          { id: "h6", date: "2026-10-25", machine: "DAM", score: 89.636, memo: "" }
+        ]
+      },
+      {
+        id: "s3",
+        title: "奏（かなで）",
+        artist: "スキマスイッチ",
+        reading: "かなで",
+        artistReading: "すきますいっち",
+        low: "D3",
+        high: "G#4",
+        falsetto: "A#4",
+        history: []
+      },
+      {
+        id: "s4",
+        title: "小さな恋のうた",
+        artist: "MONGOL800",
+        reading: "ちいさなこいのうた",
+        artistReading: "もんごるはっぴゃく",
+        low: "A2",
+        high: "E4",
+        falsetto: null,
+        history: []
+      },
+      {
+        id: "s5",
+        title: "さよならエレジー",
+        artist: "菅田将暉",
+        reading: "さよならえれじー",
+        artistReading: "すだまさき",
+        low: "D3",
+        high: "F#4",
+        falsetto: null,
+        history: [
+          { id: "h11", date: "2026-10-14", machine: "JOY", score: 96.012, memo: "" },
+          { id: "h12", date: "2026-11-01", machine: "DAM", score: 91.5, memo: "" }
+        ]
+      },
+      {
+        id: "s_1794304597811",
+        title: "ドラえもん",
+        reading: "どらえもん",
+        artist: "星野源",
+        artistReading: "ほしのげん",
+        low: "C3",
+        high: "G4",
+        falsetto: null,
+        history: []
+      },
+      {
+        id: "s_1794310063695",
+        title: "栄光の架橋",
+        reading: "えいこうのかけはし",
+        artist: "ゆず",
+        artistReading: "ゆず",
+        low: "B2",
+        high: "A4",
+        falsetto: null,
+        history: [
+          { id: "h_1794310173001", date: "2026-11-03", machine: "DAM", score: 88.168, memo: "しゃくり22、こぶし5、フォール4、ビブラート6" },
+          { id: "h_1794310205406", date: "2026-11-10", machine: "DAM", score: 88.255, memo: "" }
+        ]
+      },
+      {
+        id: "s_1794310399859",
+        title: "全力少年",
+        reading: "ぜんりょくしょうねん",
+        artist: "スキマスイッチ",
+        artistReading: "すきますいっち",
+        low: "D3",
+        high: "A4",
+        falsetto: null,
+        history: []
+      }
     ];
 
-    // --- State 管理 ---
-    let localSongDatabase = [];    // 実際のローカルデータ
-    let currentViewingDatabase = []; // 現在画面に表示しているデータ
-    let isJsonViewingMode = false; // JSON一時参照モード中フラグ
+    // --- State 管理（一元化・保存漏れ防止） ---
+    let songDatabase = [];          // メインの曲データベース
+    let backupSongDatabase = null;  // 一時参照モード時の退避用
+    let isJsonViewingMode = false;
     let activeTab = 'kana';
     let currentSyl = 'ALL';
     let searchQuery = '';
     let currentSelectedSongId = null;
     let scoreChartInstance = null;
+    let selectedFileJsonData = null;
 
     const STORAGE_KEY = 'my_karaoke_data_v2';
 
-    // データの読み込みと初期化（過去バージョンからの自動引き継ぎ含む）
+    // 初期化：ローカルストレージから確実に読み込む
     function initData() {
-      let stored = localStorage.getItem(STORAGE_KEY);
-      
-      // 旧キーからの自動マイグレーション
-      if (!stored) {
-        const legacy = localStorage.getItem('my_karaoke_songs') || localStorage.getItem('my_karaoke_data');
-        if (legacy) {
-          try {
-            const parsed = JSON.parse(legacy);
-            if (Array.isArray(parsed)) {
-              // 旧形式のjoy/damスコアを新形式のhistory配列に変換
-              localSongDatabase = parsed.map((item, idx) => {
-                const hist = [];
-                if (item.joy && typeof item.joy === 'number') {
-                  hist.push({ id: `h_mig_joy_${idx}`, date: '2026-10-01', machine: 'JOY', score: item.joy, memo: '引継データ' });
-                }
-                if (item.dam && typeof item.dam === 'number') {
-                  hist.push({ id: `h_mig_dam_${idx}`, date: '2026-10-01', machine: 'DAM', score: item.dam, memo: '引継データ' });
-                }
-                return {
-                  id: item.id || `s_${idx}_${Date.now()}`,
-                  title: item.title,
-                  artist: item.artist,
-                  reading: item.reading || '',
-                  artistReading: item.artistReading || '',
-                  low: item.low || 'C3',
-                  high: item.high || 'G4',
-                  falsetto: item.falsetto || null,
-                  history: item.history || hist
-                };
-              });
-              saveToStorage();
-              currentViewingDatabase = [...localSongDatabase];
-              return;
-            }
-          } catch(e) {}
-        }
-      }
-
+      const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         try {
-          localSongDatabase = JSON.parse(stored);
+          songDatabase = JSON.parse(stored);
         } catch (e) {
-          localSongDatabase = defaultSongDatabase;
+          songDatabase = defaultSongDatabase;
         }
       } else {
-        localSongDatabase = defaultSongDatabase;
+        songDatabase = defaultSongDatabase;
       }
       saveToStorage();
-      currentViewingDatabase = [...localSongDatabase];
     }
 
+    // 保存：曲追加・編集・採点追加時に必ず実行され、LocalStorageにリアルタイム上書き
     function saveToStorage() {
       if (!isJsonViewingMode) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(localSongDatabase));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(songDatabase));
       }
     }
 
@@ -596,15 +646,13 @@
       const selectEl = document.getElementById('select-existing-artist');
       selectEl.innerHTML = '<option value="">-- 登録済みアーティストから選択 --</option>';
 
-      // アーティスト名でユニーク化
       const map = new Map();
-      currentViewingDatabase.forEach(s => {
+      songDatabase.forEach(s => {
         if (s.artist && !map.has(s.artist)) {
           map.set(s.artist, s.artistReading || '');
         }
       });
 
-      // 50音順ソート
       const sorted = Array.from(map.entries()).sort((a, b) => (a[1] || a[0]).localeCompare(b[1] || b[0], 'ja'));
       sorted.forEach(([artist, reading]) => {
         const opt = document.createElement('option');
@@ -615,7 +663,6 @@
       });
     }
 
-    // 既出アーティスト選択時の自動入力
     document.getElementById('select-existing-artist').addEventListener('change', (e) => {
       const selected = e.target.value;
       if (!selected) return;
@@ -629,9 +676,9 @@
       const container = document.getElementById('songs-container');
       const emptyState = document.getElementById('empty-state');
       const totalBadge = document.getElementById('total-songs-badge');
-      totalBadge.textContent = `${currentViewingDatabase.length}曲`;
+      totalBadge.textContent = `${songDatabase.length}曲`;
 
-      let filtered = currentViewingDatabase.filter(s => {
+      let filtered = songDatabase.filter(s => {
         if (!searchQuery) return true;
         const q = searchQuery.toLowerCase();
         return (s.title && s.title.toLowerCase().includes(q)) ||
@@ -783,7 +830,7 @@
     // --- 1. 詳細モーダル & グラフ ---
     function openDetailModal(songId) {
       currentSelectedSongId = songId;
-      const song = currentViewingDatabase.find(s => s.id === songId);
+      const song = songDatabase.find(s => s.id === songId);
       if (!song) return;
 
       document.getElementById('detail-title').textContent = song.title;
@@ -796,14 +843,11 @@
       document.getElementById('detail-joy-best').textContent = best.joy !== null ? `${best.joy.toFixed(3)}点` : '-';
       document.getElementById('detail-dam-best').textContent = best.dam !== null ? `${best.dam.toFixed(3)}点` : '-';
 
-      // デフォルト日付
       document.getElementById('score-input-date').value = new Date().toISOString().split('T')[0];
       document.getElementById('score-input-val').value = '';
       document.getElementById('score-input-memo').value = '';
 
-      // 機種ボタン初期化（JOY選択）
       setMachineSelection('JOY');
-
       renderHistoryList(song);
       renderChart(song);
 
@@ -819,7 +863,6 @@
       }
     }
 
-    // 機種ボタントグル
     function setMachineSelection(machine) {
       document.getElementById('score-input-machine').value = machine;
       const joyBtn = document.getElementById('btn-select-joy');
@@ -928,10 +971,10 @@
       });
     }
 
-    // スコア追加
+    // スコア追加（確実にLocalStorageへ同期上書き保存）
     document.getElementById('record-score-form').addEventListener('submit', (e) => {
       e.preventDefault();
-      const song = currentViewingDatabase.find(s => s.id === currentSelectedSongId);
+      const song = songDatabase.find(s => s.id === currentSelectedSongId);
       if (!song) return;
 
       const date = document.getElementById('score-input-date').value;
@@ -948,7 +991,7 @@
         memo: memo
       });
 
-      saveToStorage();
+      saveToStorage(); // 即座に永続保存
       renderHistoryList(song);
       renderChart(song);
       render();
@@ -960,18 +1003,18 @@
 
     window.deleteScoreRecord = function(historyId) {
       if (!confirm('このスコア記録を削除しますか？')) return;
-      const song = currentViewingDatabase.find(s => s.id === currentSelectedSongId);
+      const song = songDatabase.find(s => s.id === currentSelectedSongId);
       if (!song || !song.history) return;
 
       song.history = song.history.filter(h => h.id !== historyId);
-      saveToStorage();
+      saveToStorage(); // 即座に永続保存
       renderHistoryList(song);
       renderChart(song);
       render();
       lucide.createIcons();
     };
 
-    // --- 2. 曲編集 / 新規追加 ---
+    // --- 2. 曲編集 / 新規追加（確実にLocalStorageへ同期上書き保存） ---
     function openEditModal(songId = null) {
       updateExistingArtistDropdown();
       const modal = document.getElementById('edit-modal');
@@ -979,7 +1022,7 @@
       const deleteBtn = document.getElementById('btn-delete-song');
 
       if (songId) {
-        const song = currentViewingDatabase.find(s => s.id === songId);
+        const song = songDatabase.find(s => s.id === songId);
         if (!song) return;
         titleEl.textContent = '曲情報・音域の編集';
         document.getElementById('form-song-id').value = song.id;
@@ -1023,7 +1066,7 @@
       const falsetto = document.getElementById('form-falsetto').value || null;
 
       if (id) {
-        const song = currentViewingDatabase.find(s => s.id === id);
+        const song = songDatabase.find(s => s.id === id);
         if (song) {
           song.title = title;
           song.reading = reading;
@@ -1034,7 +1077,8 @@
           song.falsetto = falsetto;
         }
       } else {
-        currentViewingDatabase.push({
+        // 新規追加曲を songDatabase に直接追加
+        songDatabase.push({
           id: 's_' + Date.now(),
           title: title,
           reading: reading,
@@ -1047,7 +1091,7 @@
         });
       }
 
-      saveToStorage();
+      saveToStorage(); // 即座に永続保存
       document.getElementById('edit-modal').classList.add('hidden');
       if (id && currentSelectedSongId === id) {
         openDetailModal(id);
@@ -1059,73 +1103,99 @@
       const id = document.getElementById('form-song-id').value;
       if (!confirm('この曲を削除しますか？スコア履歴も消去されます。')) return;
 
-      currentViewingDatabase = currentViewingDatabase.filter(s => s.id !== id);
-      if (!isJsonViewingMode) {
-        localSongDatabase = localSongDatabase.filter(s => s.id !== id);
-      }
-      saveToStorage();
+      songDatabase = songDatabase.filter(s => s.id !== id);
+      saveToStorage(); // 即座に永続保存
       document.getElementById('edit-modal').classList.add('hidden');
       closeDetailModal();
       render();
     });
 
-    // --- 3. JSONモーダル ＆ 一時参照モード処理 ---
-    const jsonModal = document.getElementById('json-modal');
+    // --- 3. ファイルダウンロード＆インポート処理 ---
+    const fileModal = document.getElementById('file-modal');
     const jsonBanner = document.getElementById('json-mode-banner');
+    const fileInput = document.getElementById('json-file-input');
+    const fileActionButtons = document.getElementById('file-action-buttons');
 
-    document.getElementById('btn-export-json').addEventListener('click', () => {
-      document.getElementById('json-textarea').value = JSON.stringify(currentViewingDatabase, null, 2);
-      jsonModal.classList.remove('hidden');
-    });
-    document.getElementById('btn-close-json').addEventListener('click', () => {
-      jsonModal.classList.add('hidden');
-    });
-    document.getElementById('btn-copy-json').addEventListener('click', () => {
-      navigator.clipboard.writeText(document.getElementById('json-textarea').value);
-      alert('クリップボードにJSONをコピーしました！');
+    document.getElementById('btn-open-file-modal').addEventListener('click', () => {
+      fileInput.value = '';
+      selectedFileJsonData = null;
+      fileActionButtons.classList.add('hidden');
+      fileModal.classList.remove('hidden');
     });
 
-    // 案A: 一時参照モード（ローカルデータを保護）
-    document.getElementById('btn-view-temp-json').addEventListener('click', () => {
-      try {
-        const parsed = JSON.parse(document.getElementById('json-textarea').value);
-        if (!Array.isArray(parsed)) throw new Error('配列ではありません');
+    document.getElementById('btn-close-file-modal').addEventListener('click', () => {
+      fileModal.classList.add('hidden');
+    });
 
-        currentViewingDatabase = parsed;
-        isJsonViewingMode = true;
-        jsonBanner.classList.remove('hidden');
-        jsonModal.classList.add('hidden');
-        render();
-        alert('JSONを一時参照モードで読み込みました。\nローカルデータは安全に保護されています。');
-      } catch (e) {
-        alert('有効なJSON配列形式ではありません');
+    // A. JSONファイルダウンロード
+    document.getElementById('btn-download-json-file').addEventListener('click', () => {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(songDatabase, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", "karaoke.json");
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    });
+
+    // B. ファイル選択時のパース処理
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) {
+        fileActionButtons.classList.add('hidden');
+        return;
       }
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const parsed = JSON.parse(evt.target.result);
+          if (!Array.isArray(parsed)) throw new Error('配列形式ではありません');
+          selectedFileJsonData = parsed;
+          fileActionButtons.classList.remove('hidden');
+        } catch (err) {
+          alert('選択されたファイルは有効なカラオケJSONデータではありません。');
+          fileInput.value = '';
+          fileActionButtons.classList.add('hidden');
+        }
+      };
+      reader.readAsText(file);
     });
 
-    // 案B: ローカルに完全取り込み
-    document.getElementById('btn-import-json-permanent').addEventListener('click', () => {
-      if (!confirm('現在のローカルデータをこのJSONで完全に上書きしますか？')) return;
-      try {
-        const parsed = JSON.parse(document.getElementById('json-textarea').value);
-        if (!Array.isArray(parsed)) throw new Error('配列ではありません');
-
-        localSongDatabase = parsed;
-        currentViewingDatabase = [...localSongDatabase];
-        isJsonViewingMode = false;
-        jsonBanner.classList.add('hidden');
-        saveToStorage();
-        jsonModal.classList.add('hidden');
-        render();
-        alert('ローカルストレージにデータを取り込みました！');
-      } catch (e) {
-        alert('有効なJSON配列形式ではありません');
-      }
+    // C. 一時参照モード（ローカルデータを退避保護）
+    document.getElementById('btn-file-temp-view').addEventListener('click', () => {
+      if (!selectedFileJsonData) return;
+      backupSongDatabase = [...songDatabase]; // 元のデータを退避
+      songDatabase = selectedFileJsonData;
+      isJsonViewingMode = true;
+      jsonBanner.classList.remove('hidden');
+      fileModal.classList.add('hidden');
+      render();
+      alert('ファイルを「一時参照モード」で開きました。\nローカルデータは安全に保護されています。');
     });
 
-    // 一時参照モード終了（ローカル復帰）
-    document.getElementById('btn-exit-json-mode').addEventListener('click', () => {
+    // D. ローカルに完全取込（永続保存）
+    document.getElementById('btn-file-import-permanent').addEventListener('click', () => {
+      if (!selectedFileJsonData) return;
+      if (!confirm('端末のローカルデータをこのファイルの内容で完全に上書きしますか？')) return;
+
+      songDatabase = selectedFileJsonData;
       isJsonViewingMode = false;
-      currentViewingDatabase = [...localSongDatabase];
+      backupSongDatabase = null;
+      jsonBanner.classList.add('hidden');
+      saveToStorage(); // 永続保存
+      fileModal.classList.add('hidden');
+      render();
+      alert('ファイルの内容をローカルに完全取り込みました！');
+    });
+
+    // 一時参照モード終了（退避したローカル復帰）
+    document.getElementById('btn-exit-json-mode').addEventListener('click', () => {
+      if (backupSongDatabase) {
+        songDatabase = backupSongDatabase;
+        backupSongDatabase = null;
+      }
+      isJsonViewingMode = false;
       jsonBanner.classList.add('hidden');
       render();
       alert('ローカルのデータに戻りました。');
