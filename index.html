@@ -85,7 +85,7 @@
             Myカラオケ帳
             <span id="total-songs-badge" class="text-[11px] font-normal px-2 py-0.5 rounded-full bg-slate-800 text-indigo-400 border border-indigo-500/20">0曲</span>
           </h1>
-          <p class="text-[10px] text-slate-400">音域・スコア推移データベース</p>
+          <p class="text-[10px] text-slate-400">音域・適切キー・スコア推移DB</p>
         </div>
       </div>
       <div class="flex items-center space-x-2">
@@ -101,7 +101,7 @@
     </div>
 
     <!-- 検索 & フィルターバー -->
-    <div class="max-w-2xl mx-auto mt-2.5 space-y-2">
+    <div id="header-filter-area" class="max-w-2xl mx-auto mt-2.5 space-y-2">
       <div class="relative flex items-center">
         <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none"></i>
         <input type="search" id="search-input" placeholder="曲名・アーティスト・よみがな検索..." 
@@ -134,13 +134,13 @@
     <div id="songs-container" class="space-y-3"></div>
     <div id="empty-state" class="hidden py-16 text-center text-slate-500 text-xs">
       <i data-lucide="music-4" class="w-10 h-10 mx-auto mb-2 text-slate-600"></i>
-      一致する曲が見つかりませんでした
+      一致するデータが見つかりませんでした
     </div>
   </main>
 
-  <!-- ボトムタブバー -->
-  <nav class="fixed bottom-0 left-0 right-0 z-30 bg-bgBase/95 backdrop-blur-md border-t border-slate-800/90 py-1.5 px-6">
-    <div class="max-w-md mx-auto grid grid-cols-3 gap-2">
+  <!-- ボトムタブバー（4タブ構成：50音順 / アーティスト別 / 日別記録 / ランキング） -->
+  <nav class="fixed bottom-0 left-0 right-0 z-30 bg-bgBase/95 backdrop-blur-md border-t border-slate-800/90 py-1.5 px-3">
+    <div class="max-w-md mx-auto grid grid-cols-4 gap-1">
       <button id="tab-btn-kana" class="flex flex-col items-center justify-center py-1 text-indigo-400 font-semibold transition active:scale-95" data-tab="kana">
         <i data-lucide="list-ordered" class="w-5 h-5 mb-0.5"></i>
         <span class="text-[10px]">50音順</span>
@@ -148,6 +148,10 @@
       <button id="tab-btn-artist" class="flex flex-col items-center justify-center py-1 text-slate-400 hover:text-slate-200 transition active:scale-95" data-tab="artist">
         <i data-lucide="users" class="w-5 h-5 mb-0.5"></i>
         <span class="text-[10px]">アーティスト別</span>
+      </button>
+      <button id="tab-btn-date" class="flex flex-col items-center justify-center py-1 text-slate-400 hover:text-slate-200 transition active:scale-95" data-tab="date">
+        <i data-lucide="calendar-days" class="w-5 h-5 mb-0.5"></i>
+        <span class="text-[10px]">日別記録</span>
       </button>
       <button id="tab-btn-rank" class="flex flex-col items-center justify-center py-1 text-slate-400 hover:text-slate-200 transition active:scale-95" data-tab="rank">
         <i data-lucide="trophy" class="w-5 h-5 mb-0.5"></i>
@@ -167,7 +171,7 @@
         <div class="flex items-center space-x-1 shrink-0">
           <button id="btn-open-edit" class="p-2 text-xs text-indigo-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg flex items-center gap-1 transition">
             <i data-lucide="pencil" class="w-4 h-4"></i>
-            <span>編集</span>
+            <span>曲設定・キー編集</span>
           </button>
           <button id="btn-close-detail" class="p-2 text-slate-400 hover:text-white rounded-lg">
             <i data-lucide="x" class="w-5 h-5"></i>
@@ -176,13 +180,17 @@
       </div>
 
       <div class="overflow-y-auto p-4 space-y-4 custom-scroll">
-        <!-- 音域サマリー -->
+        <!-- 音域 & 適切キーサマリー -->
         <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
           <div class="text-[11px] font-semibold text-slate-400 mb-2 flex items-center justify-between">
-            <span>音域データ</span>
+            <span>音域・マイキー設定</span>
             <span class="text-[10px] text-slate-500">C4 = mid2C (中央ド)</span>
           </div>
-          <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="grid grid-cols-4 gap-2 text-center">
+            <div class="bg-indigo-950/40 p-2 rounded-lg border border-indigo-800/50">
+              <span class="text-[10px] text-indigo-300 block">適切キー</span>
+              <span id="detail-key" class="text-xs font-mono font-bold text-indigo-400">±0</span>
+            </div>
             <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
               <span class="text-[10px] text-slate-400 block">最低音</span>
               <span id="detail-low" class="text-xs font-mono font-bold text-emerald-400">-</span>
@@ -210,24 +218,31 @@
           </div>
         </div>
 
-        <!-- スコア推移グラフ -->
+        <!-- スコア推移グラフ（同日縦並び＆最高点接続） -->
         <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
           <div class="text-[11px] font-semibold text-slate-400 mb-2 flex items-center justify-between">
             <span>スコア推移グラフ</span>
-            <span class="text-[10px] text-slate-500">練習の成果</span>
+            <span class="text-[10px] text-slate-500">同日は縦プロット・最高点を線接続</span>
           </div>
-          <div class="w-full h-44">
+          <div class="w-full h-48">
             <canvas id="score-chart"></canvas>
           </div>
         </div>
 
-        <!-- スコア記録フォーム -->
-        <div class="bg-indigo-950/20 border border-indigo-900/40 rounded-xl p-3 space-y-3">
-          <h3 class="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
-            <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
-            新しいスコアを記録
-          </h3>
+        <!-- スコア記録 / 履歴編集フォーム -->
+        <div id="score-form-container" class="bg-indigo-950/20 border border-indigo-900/40 rounded-xl p-3 space-y-3 transition">
+          <div class="flex items-center justify-between">
+            <h3 id="score-form-title" class="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+              <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+              <span>新しいスコアを記録</span>
+            </h3>
+            <button type="button" id="btn-cancel-score-edit" class="hidden text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 hover:text-white">
+              編集キャンセル
+            </button>
+          </div>
+
           <form id="record-score-form" class="space-y-3">
+            <input type="hidden" id="score-edit-history-id" value="">
             <div>
               <label class="text-[10px] text-slate-400 block mb-1">採点機種</label>
               <div class="grid grid-cols-2 gap-2">
@@ -256,10 +271,10 @@
 
             <div>
               <label class="text-[10px] text-slate-400 block mb-1">メモ（任意）</label>
-              <input type="text" id="score-input-memo" placeholder="例: しゃくり22、こぶし5、フォール4、ビブラート6 など" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-indigo-500">
+              <input type="text" id="score-input-memo" placeholder="例: しゃくり22、こぶし5、キー-2 など" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-indigo-500">
             </div>
 
-            <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition shadow-md shadow-indigo-600/30 active:scale-98">
+            <button type="submit" id="btn-submit-score" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition shadow-md shadow-indigo-600/30 active:scale-98">
               スコアを保存
             </button>
           </form>
@@ -268,6 +283,7 @@
         <div class="space-y-2">
           <h3 class="text-xs font-bold text-slate-300 flex items-center justify-between">
             <span>過去の歌唱履歴 (<span id="history-count">0</span>件)</span>
+            <span class="text-[10px] font-normal text-slate-500">日付タップでその日の全記録へ</span>
           </h3>
           <div id="history-list" class="space-y-1.5"></div>
         </div>
@@ -321,6 +337,35 @@
           </div>
         </div>
 
+        <!-- 適切キー（マイキー）設定 -->
+        <div class="bg-indigo-950/20 p-3 rounded-xl border border-indigo-900/50 space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-bold text-indigo-300">自分の適切キー設定</label>
+            <span class="text-[10px] text-slate-400">原曲キー = ±0</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button type="button" id="btn-key-minus" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-200 active:scale-95">-</button>
+            <select id="form-key" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-center text-white font-mono font-bold">
+              <option value="7">+7</option>
+              <option value="6">+6</option>
+              <option value="5">+5</option>
+              <option value="4">+4</option>
+              <option value="3">+3</option>
+              <option value="2">+2</option>
+              <option value="1">+1</option>
+              <option value="0" selected>±0 (原曲キー)</option>
+              <option value="-1">-1</option>
+              <option value="-2">-2</option>
+              <option value="-3">-3</option>
+              <option value="-4">-4</option>
+              <option value="-5">-5</option>
+              <option value="-6">-6</option>
+              <option value="-7">-7</option>
+            </select>
+            <button type="button" id="btn-key-plus" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-200 active:scale-95">+</button>
+          </div>
+        </div>
+
         <!-- 音域ドロップダウン（A基準 + 「不明」初期設定＆ボタン） -->
         <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2.5">
           <div class="flex items-center justify-between">
@@ -370,7 +415,7 @@
 
   <!-- 3. ファイル管理モーダル -->
   <div id="file-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700/80 w-full max-w-md rounded-2xl p-5 flex flex-col space-y-4 shadow-2xl">
+    <div class="bg-slate-900 border border-slate-700/80 w-full max-w-md rounded-2xl p-5 flex flex-col space-y-4 max-h-[90vh] overflow-y-auto custom-scroll shadow-2xl">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
           <i data-lucide="folder-cog" class="w-4 h-4 text-indigo-400"></i>
@@ -381,17 +426,25 @@
         </button>
       </div>
 
-      <!-- ダウンロード -->
-      <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-2">
+      <!-- ダウンロード＆共有 -->
+      <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-2.5">
         <h4 class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
           <i data-lucide="download" class="w-3.5 h-3.5 text-emerald-400"></i>
           1. ファイルを書き出す（karaoke.json）
         </h4>
-        <p class="text-[11px] text-slate-400">現在の全データを「karaoke.json」としてダウンロード保存します。</p>
-        <button id="btn-download-json-file" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-md shadow-emerald-600/20 active:scale-98">
-          <i data-lucide="download" class="w-3.5 h-3.5"></i>
-          <span>karaoke.json をダウンロード</span>
-        </button>
+        <p class="text-[11px] text-slate-400">現在の全データ（<span id="export-count-label">0</span>曲）を書き出します。</p>
+        
+        <div class="grid grid-cols-1 gap-2">
+          <button id="btn-download-json-file" type="button" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-md shadow-emerald-600/20 active:scale-98">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+            <span>karaoke.json をダウンロード</span>
+          </button>
+
+          <button id="btn-share-json-file" type="button" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition active:scale-98">
+            <i data-lucide="share" class="w-3.5 h-3.5 text-indigo-400"></i>
+            <span>スマホの「ファイルに保存」/ 共有メニューで出力</span>
+          </button>
+        </div>
       </div>
 
       <!-- ファイルインポート -->
@@ -402,13 +455,13 @@
         </h4>
         <p class="text-[11px] text-slate-400">端末内のJSONファイル（`.json`）を選択してください。</p>
 
-        <input type="file" id="json-file-input" accept=".json,application/json" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700 cursor-pointer">
+        <input type="file" id="json-file-input" accept=".json,application/json,text/plain" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700 cursor-pointer">
 
         <div id="file-action-buttons" class="hidden grid grid-cols-2 gap-2 pt-1">
-          <button id="btn-file-temp-view" class="py-2.5 px-3 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-bold transition">
+          <button id="btn-file-temp-view" type="button" class="py-2.5 px-3 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-bold transition">
             一時参照（保護）
           </button>
-          <button id="btn-file-import-permanent" class="py-2.5 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-md shadow-indigo-600/20">
+          <button id="btn-file-import-permanent" type="button" class="py-2.5 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-md shadow-indigo-600/20">
             ローカルに完全取込
           </button>
         </div>
@@ -476,6 +529,14 @@
       });
     }
 
+    function formatKeyBadge(keyVal) {
+      if (keyVal === undefined || keyVal === null || keyVal === '' || Number(keyVal) === 0) {
+        return '±0';
+      }
+      const num = Number(keyVal);
+      return num > 0 ? `+${num}` : `${num}`;
+    }
+
     // --- State 管理 ---
     let songDatabase = [];
     let backupSongDatabase = null;
@@ -486,6 +547,7 @@
     let currentSelectedSongId = null;
     let scoreChartInstance = null;
     let selectedFileJsonData = null;
+    let targetDateFilter = null; // 日別タブで特定の日付にフォーカスする場合
 
     const STORAGE_KEY = 'my_karaoke_data_v2';
 
@@ -574,24 +636,56 @@
       document.getElementById('form-artist-reading').value = opt.dataset.reading || '';
     });
 
-    // --- レンダリング ---
+    // --- レンダリング（タブごとの検索挙動を切り替え） ---
     function render() {
       const container = document.getElementById('songs-container');
       const emptyState = document.getElementById('empty-state');
       const totalBadge = document.getElementById('total-songs-badge');
+      const searchInput = document.getElementById('search-input');
+      const syllabaryBar = document.getElementById('syllabary-bar');
+
       totalBadge.textContent = `${songDatabase.length}曲`;
 
+      // タブに応じてプレースホルダーと50音バーの表示を調整
+      if (activeTab === 'artist') {
+        searchInput.placeholder = "アーティスト名・歌手よみがな検索...";
+        syllabaryBar.classList.remove('hidden');
+      } else if (activeTab === 'date') {
+        searchInput.placeholder = "日付(2026-11)・曲名・メモで検索...";
+        syllabaryBar.classList.add('hidden');
+      } else {
+        searchInput.placeholder = "曲名・アーティスト・よみがな検索...";
+        syllabaryBar.classList.remove('hidden');
+      }
+
+      // 日別記録タブは専用レンダリング
+      if (activeTab === 'date') {
+        renderDateView(container, emptyState);
+        lucide.createIcons();
+        return;
+      }
+
+      // 検索フィルタリング（アーティスト別タブの時はアーティストのみを検索対象にする）
       let filtered = songDatabase.filter(s => {
         if (!searchQuery) return true;
         const q = searchQuery.toLowerCase();
-        return (s.title && s.title.toLowerCase().includes(q)) ||
-               (s.artist && s.artist.toLowerCase().includes(q)) ||
-               (s.reading && s.reading.toLowerCase().includes(q)) ||
-               (s.artistReading && s.artistReading.toLowerCase().includes(q));
+        if (activeTab === 'artist') {
+          return (s.artist && s.artist.toLowerCase().includes(q)) ||
+                 (s.artistReading && s.artistReading.toLowerCase().includes(q));
+        } else {
+          return (s.title && s.title.toLowerCase().includes(q)) ||
+                 (s.artist && s.artist.toLowerCase().includes(q)) ||
+                 (s.reading && s.reading.toLowerCase().includes(q)) ||
+                 (s.artistReading && s.artistReading.toLowerCase().includes(q));
+        }
       });
 
+      // 50音インデックスフィルタ（アーティスト別タブの時はアーティストよみがなの頭文字で判定）
       if (currentSyl !== 'ALL') {
-        filtered = filtered.filter(s => getKanaRow(s.reading) === currentSyl);
+        filtered = filtered.filter(s => {
+          const targetReading = (activeTab === 'artist') ? (s.artistReading || s.artist) : s.reading;
+          return getKanaRow(targetReading) === currentSyl;
+        });
       }
 
       if (filtered.length === 0) {
@@ -615,6 +709,9 @@
 
     function createSongCard(song) {
       const best = getBestScores(song);
+      const keyLabel = formatKeyBadge(song.key);
+      const isKeyChanged = keyValNonZero(song.key);
+
       const card = document.createElement('div');
       card.className = "bg-bgCard hover:bg-bgCardHover border border-slate-800 hover:border-slate-700/80 rounded-xl p-3.5 transition cursor-pointer shadow-sm active:scale-[0.99]";
       card.onclick = () => openDetailModal(song.id);
@@ -625,7 +722,8 @@
             <h3 class="text-sm font-bold text-slate-100 truncate">${song.title}</h3>
             <p class="text-xs text-slate-400 truncate mt-0.5">${song.artist}</p>
           </div>
-          <div class="flex items-center gap-1 font-mono text-[11px] shrink-0">
+          <div class="flex items-center gap-1 font-mono text-[11px] shrink-0 flex-wrap justify-end">
+            <span class="px-1.5 py-0.5 rounded border ${isKeyChanged ? 'bg-indigo-950/60 border-indigo-700/60 text-indigo-300 font-bold' : 'bg-slate-900 border-slate-800 text-slate-400'}">Key ${keyLabel}</span>
             <span class="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-300">低 ${song.low || '-'}</span>
             <span class="px-1.5 py-0.5 rounded bg-amber-950/40 border border-amber-800/40 text-amber-400 font-bold">高 ${song.high || '-'}</span>
             ${song.falsetto ? `<span class="px-1.5 py-0.5 rounded bg-purple-950/40 border border-purple-800/40 text-purple-400">裏 ${song.falsetto}</span>` : ''}
@@ -649,6 +747,10 @@
         </div>
       `;
       return card;
+    }
+
+    function keyValNonZero(k) {
+      return k !== undefined && k !== null && k !== '' && Number(k) !== 0;
     }
 
     function renderKanaView(songs, container) {
@@ -726,6 +828,126 @@
       });
     }
 
+    // --- 日別記録ビュー（その日に歌った全曲の得点一覧） ---
+    function renderDateView(container, emptyState) {
+      container.innerHTML = '';
+
+      // 全曲のhistoryから日付ごとに集計
+      const dateMap = new Map();
+      songDatabase.forEach(song => {
+        if (!song.history || song.history.length === 0) return;
+        song.history.forEach(h => {
+          if (!h.date) return;
+          if (targetDateFilter && h.date !== targetDateFilter) return;
+
+          if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            const match = h.date.toLowerCase().includes(q) ||
+                          (song.title && song.title.toLowerCase().includes(q)) ||
+                          (song.artist && song.artist.toLowerCase().includes(q)) ||
+                          (h.memo && h.memo.toLowerCase().includes(q));
+            if (!match) return;
+          }
+
+          if (!dateMap.has(h.date)) {
+            dateMap.set(h.date, []);
+          }
+          dateMap.get(h.date).push({
+            songId: song.id,
+            title: song.title,
+            artist: song.artist,
+            key: song.key,
+            historyId: h.id,
+            machine: h.machine,
+            score: parseFloat(h.score),
+            memo: h.memo || ''
+          });
+        });
+      });
+
+      if (targetDateFilter) {
+        const filterBanner = document.createElement('div');
+        filterBanner.className = "bg-indigo-950/40 border border-indigo-800/60 rounded-xl p-2.5 flex items-center justify-between text-xs mb-3";
+        filterBanner.innerHTML = `
+          <span class="text-indigo-300 font-bold flex items-center gap-1.5">
+            <i data-lucide="calendar" class="w-4 h-4"></i>
+            ${targetDateFilter} の記録を表示中
+          </span>
+          <button id="btn-clear-date-filter" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-[11px] font-semibold">
+            全日程を表示
+          </button>
+        `;
+        container.appendChild(filterBanner);
+        setTimeout(() => {
+          const btn = document.getElementById('btn-clear-date-filter');
+          if (btn) btn.onclick = () => { targetDateFilter = null; render(); };
+        }, 0);
+      }
+
+      if (dateMap.size === 0) {
+        emptyState.classList.remove('hidden');
+        return;
+      }
+      emptyState.classList.add('hidden');
+
+      // 日付の新しい順（降順）にソート
+      const sortedDates = Array.from(dateMap.keys()).sort((a, b) => new Date(b) - new Date(a));
+
+      sortedDates.forEach(dateStr => {
+        const records = dateMap.get(dateStr);
+        // その日のスコア高い順または登録順に並べる（ここでは得点の高い順）
+        records.sort((a, b) => b.score - a.score);
+
+        const maxScore = Math.max(...records.map(r => r.score));
+        const avgScore = records.reduce((acc, r) => acc + r.score, 0) / records.length;
+
+        const sec = document.createElement('div');
+        sec.className = "bg-slate-900/60 border border-slate-800 rounded-2xl p-3.5 space-y-2.5";
+
+        sec.innerHTML = `
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-1 rounded-lg bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 font-mono text-xs font-bold">
+                ${dateStr}
+              </span>
+              <span class="text-xs text-slate-400 font-semibold">${records.length}曲歌唱</span>
+            </div>
+            <div class="text-[11px] font-mono text-slate-400 flex items-center gap-2">
+              <span>最高 <b class="text-amber-400">${maxScore.toFixed(3)}</b></span>
+              <span>平均 <b class="text-slate-200">${avgScore.toFixed(2)}</b></span>
+            </div>
+          </div>
+        `;
+
+        const list = document.createElement('div');
+        list.className = "space-y-1.5";
+
+        records.forEach(rec => {
+          const item = document.createElement('div');
+          item.className = "bg-bgCard hover:bg-bgCardHover border border-slate-800/90 rounded-xl p-2.5 flex items-center justify-between gap-2 cursor-pointer transition active:scale-[0.99]";
+          item.onclick = () => openDetailModal(rec.songId);
+
+          item.innerHTML = `
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-1.5">
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${rec.machine === 'JOY' ? 'bg-blue-900/40 text-blue-400 border border-blue-800/60' : 'bg-rose-900/40 text-rose-400 border border-rose-800/60'}">${rec.machine}</span>
+                <h4 class="text-xs font-bold text-slate-100 truncate">${rec.title}</h4>
+                <span class="text-[10px] text-slate-400 truncate">- ${rec.artist}</span>
+              </div>
+              ${rec.memo ? `<p class="text-[11px] text-slate-400 mt-1 truncate pl-1">${rec.memo}</p>` : ''}
+            </div>
+            <div class="text-right shrink-0">
+              <span class="font-mono font-bold text-sm ${rec.machine === 'JOY' ? 'text-blue-300' : 'text-rose-300'}">${rec.score.toFixed(3)}<span class="text-[10px] font-normal text-slate-400 ml-0.5">点</span></span>
+            </div>
+          `;
+          list.appendChild(item);
+        });
+
+        sec.appendChild(list);
+        container.appendChild(sec);
+      });
+    }
+
     function renderRankView(songs, container) {
       container.innerHTML = '';
       const sorted = [...songs].sort((a, b) => {
@@ -744,7 +966,7 @@
       container.appendChild(list);
     }
 
-    // --- 1. 詳細モーダル & グラフ ---
+    // --- 1. 詳細モーダル & グラフ & 履歴編集 ---
     function openDetailModal(songId) {
       currentSelectedSongId = songId;
       const song = songDatabase.find(s => s.id === songId);
@@ -752,6 +974,7 @@
 
       document.getElementById('detail-title').textContent = song.title;
       document.getElementById('detail-artist').textContent = song.artist;
+      document.getElementById('detail-key').textContent = formatKeyBadge(song.key);
       document.getElementById('detail-low').textContent = song.low || '-';
       document.getElementById('detail-high').textContent = song.high || '-';
       document.getElementById('detail-falsetto').textContent = song.falsetto || 'なし';
@@ -760,11 +983,7 @@
       document.getElementById('detail-joy-best').textContent = best.joy !== null ? `${best.joy.toFixed(3)}点` : '-';
       document.getElementById('detail-dam-best').textContent = best.dam !== null ? `${best.dam.toFixed(3)}点` : '-';
 
-      document.getElementById('score-input-date').value = new Date().toISOString().split('T')[0];
-      document.getElementById('score-input-val').value = '';
-      document.getElementById('score-input-memo').value = '';
-
-      setMachineSelection('JOY');
+      resetScoreForm();
       renderHistoryList(song);
       renderChart(song);
 
@@ -779,6 +998,51 @@
         scoreChartInstance = null;
       }
     }
+
+    function resetScoreForm() {
+      document.getElementById('score-edit-history-id').value = '';
+      document.getElementById('score-input-date').value = new Date().toISOString().split('T')[0];
+      document.getElementById('score-input-val').value = '';
+      document.getElementById('score-input-memo').value = '';
+      setMachineSelection('JOY');
+
+      document.getElementById('score-form-title').innerHTML = `<i data-lucide="plus-circle" class="w-3.5 h-3.5"></i><span>新しいスコアを記録</span>`;
+      document.getElementById('btn-submit-score').textContent = 'スコアを保存';
+      document.getElementById('btn-cancel-score-edit').classList.add('hidden');
+      document.getElementById('score-form-container').className = "bg-indigo-950/20 border border-indigo-900/40 rounded-xl p-3 space-y-3 transition";
+      lucide.createIcons();
+    }
+
+    document.getElementById('btn-cancel-score-edit').addEventListener('click', resetScoreForm);
+
+    // 過去履歴の編集開始
+    window.startEditScoreRecord = function(historyId) {
+      const song = songDatabase.find(s => s.id === currentSelectedSongId);
+      if (!song || !song.history) return;
+      const target = song.history.find(h => h.id === historyId);
+      if (!target) return;
+
+      document.getElementById('score-edit-history-id').value = target.id;
+      document.getElementById('score-input-date').value = target.date;
+      document.getElementById('score-input-val').value = target.score;
+      document.getElementById('score-input-memo').value = target.memo || '';
+      setMachineSelection(target.machine || 'JOY');
+
+      document.getElementById('score-form-title').innerHTML = `<i data-lucide="pencil" class="w-3.5 h-3.5 text-amber-400"></i><span class="text-amber-300">過去のスコア履歴を編集中</span>`;
+      document.getElementById('btn-submit-score').textContent = '履歴を更新する';
+      document.getElementById('btn-cancel-score-edit').classList.remove('hidden');
+      document.getElementById('score-form-container').className = "bg-amber-950/25 border border-amber-700/60 rounded-xl p-3 space-y-3 transition";
+      lucide.createIcons();
+
+      document.getElementById('score-form-container').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+
+    // 特定の日付の全曲記録へジャンプ
+    window.jumpToDateRecords = function(dateStr) {
+      closeDetailModal();
+      targetDateFilter = dateStr;
+      switchTab('date');
+    };
 
     function setMachineSelection(machine) {
       document.getElementById('score-input-machine').value = machine;
@@ -802,7 +1066,11 @@
       const history = song.history ? [...song.history] : [];
       countEl.textContent = history.length;
 
-      history.sort((a, b) => new Date(b.date) - new Date(a.date));
+      history.sort((a, b) => {
+        const dDiff = new Date(b.date) - new Date(a.date);
+        if (dDiff !== 0) return dDiff;
+        return parseFloat(b.score) - parseFloat(a.score);
+      });
 
       if (history.length === 0) {
         listEl.innerHTML = `<div class="text-center py-4 text-xs text-slate-500">まだスコア記録がありません</div>`;
@@ -811,56 +1079,107 @@
 
       listEl.innerHTML = history.map(h => `
         <div class="bg-slate-950/70 border border-slate-800/80 rounded-lg p-2.5 flex items-center justify-between text-xs">
-          <div class="space-y-0.5">
-            <div class="flex items-center gap-2">
+          <div class="space-y-0.5 min-w-0 flex-1 pr-2">
+            <div class="flex items-center gap-2 flex-wrap">
               <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${h.machine === 'JOY' ? 'bg-blue-900/40 text-blue-400 border border-blue-800' : 'bg-rose-900/40 text-rose-400 border border-rose-800'}">${h.machine}</span>
-              <span class="font-mono text-slate-400 text-[11px]">${h.date}</span>
+              <button type="button" onclick="jumpToDateRecords('${h.date}')" class="font-mono text-indigo-400 hover:underline text-[11px] flex items-center gap-0.5" title="この日の全記録を見る">
+                ${h.date}
+                <i data-lucide="external-link" class="w-2.5 h-2.5"></i>
+              </button>
               <span class="font-mono font-bold text-slate-100 text-sm">${parseFloat(h.score).toFixed(3)}点</span>
             </div>
-            ${h.memo ? `<p class="text-[11px] text-slate-400">${h.memo}</p>` : ''}
+            ${h.memo ? `<p class="text-[11px] text-slate-400 break-words">${h.memo}</p>` : ''}
           </div>
-          <button onclick="deleteScoreRecord('${h.id}')" class="p-1.5 text-slate-500 hover:text-rose-400 rounded transition">
-            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-          </button>
+          <div class="flex items-center gap-1 shrink-0">
+            <button type="button" onclick="startEditScoreRecord('${h.id}')" class="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded transition" title="編集">
+              <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+            </button>
+            <button type="button" onclick="deleteScoreRecord('${h.id}')" class="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-slate-800 rounded transition" title="削除">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
         </div>
       `).join('');
     }
 
+    // --- グラフ描画：同日は縦にプロットし、最高点同士を折れ線で結ぶ ---
     function renderChart(song) {
       const ctx = document.getElementById('score-chart').getContext('2d');
       if (scoreChartInstance) scoreChartInstance.destroy();
 
       const history = song.history ? [...song.history] : [];
-      history.sort((a, b) => new Date(a.date) - new Date(b.date));
+      // ユニークな日付を昇順で取得
+      const uniqueFullDates = [...new Set(history.map(h => h.date))].sort((a, b) => new Date(a) - new Date(b));
+      const shortLabels = uniqueFullDates.map(d => d.slice(5)); // MM-DD
 
-      const labels = history.map(h => h.date.slice(5));
-      const joyData = history.map(h => h.machine === 'JOY' ? h.score : null);
-      const damData = history.map(h => h.machine === 'DAM' ? h.score : null);
+      // 折れ線用データ（各日の最高点）
+      const joyMaxLine = uniqueFullDates.map(d => {
+        const scores = history.filter(h => h.date === d && h.machine === 'JOY').map(h => parseFloat(h.score));
+        return scores.length > 0 ? Math.max(...scores) : null;
+      });
+      const damMaxLine = uniqueFullDates.map(d => {
+        const scores = history.filter(h => h.date === d && h.machine === 'DAM').map(h => parseFloat(h.score));
+        return scores.length > 0 ? Math.max(...scores) : null;
+      });
+
+      // 全歌唱ドット用データ（同日の全スコアを同じX座標上に縦に並べる）
+      const joyAllDots = [];
+      const damAllDots = [];
+      history.forEach(h => {
+        const label = h.date.slice(5);
+        const pt = { x: label, y: parseFloat(h.score), fullDate: h.date, memo: h.memo || '' };
+        if (h.machine === 'JOY') joyAllDots.push(pt);
+        else if (h.machine === 'DAM') damAllDots.push(pt);
+      });
+
+      // Y軸の表示範囲を自動調整（最低80、それ以下の点数があればそれに合わせる）
+      const allScores = history.map(h => parseFloat(h.score));
+      const minScore = allScores.length > 0 ? Math.min(80, Math.floor(Math.min(...allScores) - 2)) : 80;
 
       scoreChartInstance = new Chart(ctx, {
         type: 'line',
         data: {
-          labels: labels,
+          labels: shortLabels,
           datasets: [
             {
-              label: 'JOYSOUND',
-              data: joyData,
+              label: 'JOY 最高推移',
+              data: joyMaxLine,
               borderColor: '#3b82f6',
               backgroundColor: 'rgba(59, 130, 246, 0.1)',
               spanGaps: true,
-              tension: 0.2,
-              pointRadius: 4,
-              pointBackgroundColor: '#3b82f6'
+              tension: 0.15,
+              pointRadius: 0, // ドットは下のscatterデータセットで全件描画
+              borderWidth: 2
             },
             {
-              label: 'LIVE DAM',
-              data: damData,
+              label: 'DAM 最高推移',
+              data: damMaxLine,
               borderColor: '#f43f5e',
               backgroundColor: 'rgba(244, 63, 94, 0.1)',
               spanGaps: true,
-              tension: 0.2,
-              pointRadius: 4,
-              pointBackgroundColor: '#f43f5e'
+              tension: 0.15,
+              pointRadius: 0,
+              borderWidth: 2
+            },
+            {
+              label: 'JOY 得点',
+              data: joyAllDots,
+              type: 'line',
+              showLine: false,
+              pointRadius: 4.5,
+              pointHoverRadius: 6,
+              borderColor: '#3b82f6',
+              backgroundColor: '#3b82f6'
+            },
+            {
+              label: 'DAM 得点',
+              data: damAllDots,
+              type: 'line',
+              showLine: false,
+              pointRadius: 4.5,
+              pointHoverRadius: 6,
+              borderColor: '#f43f5e',
+              backgroundColor: '#f43f5e'
             }
           ]
         },
@@ -869,52 +1188,86 @@
           maintainAspectRatio: false,
           scales: {
             y: {
-              min: 80,
+              min: minScore,
               max: 100,
               grid: { color: 'rgba(51, 65, 85, 0.4)' },
               ticks: { color: '#94a3b8', font: { size: 10 } }
             },
             x: {
-              grid: { display: false },
+              type: 'category',
+              grid: { color: 'rgba(51, 65, 85, 0.2)' },
               ticks: { color: '#94a3b8', font: { size: 10 } }
             }
           },
           plugins: {
             legend: {
-              labels: { color: '#cbd5e1', font: { size: 10 } }
+              labels: {
+                color: '#cbd5e1',
+                font: { size: 10 },
+                filter: (item) => !item.text.includes('最高推移') // 凡例をスッキリ表示
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const raw = context.raw;
+                  if (raw && typeof raw === 'object' && raw.y !== undefined) {
+                    const memoStr = raw.memo ? ` (${raw.memo})` : '';
+                    return `${context.dataset.label}: ${raw.y.toFixed(3)}点${memoStr}`;
+                  }
+                  return `${context.dataset.label}: ${Number(context.parsed.y).toFixed(3)}点`;
+                }
+              }
             }
           }
         }
       });
     }
 
+    // スコア追加 または 既存履歴の更新
     document.getElementById('record-score-form').addEventListener('submit', (e) => {
       e.preventDefault();
       const song = songDatabase.find(s => s.id === currentSelectedSongId);
       if (!song) return;
 
+      const editHistoryId = document.getElementById('score-edit-history-id').value;
       const date = document.getElementById('score-input-date').value;
       const machine = document.getElementById('score-input-machine').value;
       const score = parseFloat(document.getElementById('score-input-val').value);
       const memo = document.getElementById('score-input-memo').value.trim();
 
       if (!song.history) song.history = [];
-      song.history.push({
-        id: 'h_' + Date.now(),
-        date: date,
-        machine: machine,
-        score: score,
-        memo: memo
-      });
+
+      if (editHistoryId) {
+        // 既存履歴の編集反映
+        const target = song.history.find(h => h.id === editHistoryId);
+        if (target) {
+          target.date = date;
+          target.machine = machine;
+          target.score = score;
+          target.memo = memo;
+        }
+      } else {
+        // 新規追加
+        song.history.push({
+          id: 'h_' + Date.now(),
+          date: date,
+          machine: machine,
+          score: score,
+          memo: memo
+        });
+      }
 
       saveToStorage();
+      const best = getBestScores(song);
+      document.getElementById('detail-joy-best').textContent = best.joy !== null ? `${best.joy.toFixed(3)}点` : '-';
+      document.getElementById('detail-dam-best').textContent = best.dam !== null ? `${best.dam.toFixed(3)}点` : '-';
+
+      resetScoreForm();
       renderHistoryList(song);
       renderChart(song);
       render();
       lucide.createIcons();
-
-      document.getElementById('score-input-val').value = '';
-      document.getElementById('score-input-memo').value = '';
     });
 
     window.deleteScoreRecord = function(historyId) {
@@ -924,16 +1277,33 @@
 
       song.history = song.history.filter(h => h.id !== historyId);
       saveToStorage();
+      const best = getBestScores(song);
+      document.getElementById('detail-joy-best').textContent = best.joy !== null ? `${best.joy.toFixed(3)}点` : '-';
+      document.getElementById('detail-dam-best').textContent = best.dam !== null ? `${best.dam.toFixed(3)}点` : '-';
+
+      resetScoreForm();
       renderHistoryList(song);
       renderChart(song);
       render();
       lucide.createIcons();
     };
 
-    // --- 2. 曲編集 / 新規追加 ---
+    // --- 2. 曲編集 / 新規追加（適切キー設定含む） ---
     document.getElementById('btn-reset-all-unknown').addEventListener('click', () => {
       document.getElementById('form-low').value = '';
       document.getElementById('form-high').value = '';
+    });
+
+    // キー±ボタン操作
+    document.getElementById('btn-key-minus').addEventListener('click', () => {
+      const sel = document.getElementById('form-key');
+      const cur = parseInt(sel.value || '0', 10);
+      if (cur > -7) sel.value = String(cur - 1);
+    });
+    document.getElementById('btn-key-plus').addEventListener('click', () => {
+      const sel = document.getElementById('form-key');
+      const cur = parseInt(sel.value || '0', 10);
+      if (cur < 7) sel.value = String(cur + 1);
     });
 
     function openEditModal(songId = null) {
@@ -945,12 +1315,13 @@
       if (songId) {
         const song = songDatabase.find(s => s.id === songId);
         if (!song) return;
-        titleEl.textContent = '曲情報・音域の編集';
+        titleEl.textContent = '曲情報・適切キー・音域の編集';
         document.getElementById('form-song-id').value = song.id;
         document.getElementById('form-title').value = song.title;
         document.getElementById('form-reading').value = song.reading || '';
         document.getElementById('form-artist').value = song.artist;
         document.getElementById('form-artist-reading').value = song.artistReading || '';
+        document.getElementById('form-key').value = (song.key !== undefined && song.key !== null) ? String(song.key) : '0';
 
         populateSelect(document.getElementById('form-low'), song.low || '', '不明');
         populateSelect(document.getElementById('form-high'), song.high || '', '不明');
@@ -964,8 +1335,8 @@
         document.getElementById('form-reading').value = '';
         document.getElementById('form-artist').value = '';
         document.getElementById('form-artist-reading').value = '';
+        document.getElementById('form-key').value = '0';
 
-        // 初期設定として「不明」を選択
         populateSelect(document.getElementById('form-low'), '', '不明');
         populateSelect(document.getElementById('form-high'), '', '不明');
         populateSelect(document.getElementById('form-falsetto'), '', 'なし（裏声なし）');
@@ -983,6 +1354,7 @@
       const reading = document.getElementById('form-reading').value.trim();
       const artist = document.getElementById('form-artist').value.trim();
       const artistReading = document.getElementById('form-artist-reading').value.trim();
+      const key = parseInt(document.getElementById('form-key').value || '0', 10);
       const low = document.getElementById('form-low').value || null;
       const high = document.getElementById('form-high').value || null;
       const falsetto = document.getElementById('form-falsetto').value || null;
@@ -994,6 +1366,7 @@
           song.reading = reading;
           song.artist = artist;
           song.artistReading = artistReading;
+          song.key = key;
           song.low = low;
           song.high = high;
           song.falsetto = falsetto;
@@ -1005,6 +1378,7 @@
           reading: reading,
           artist: artist,
           artistReading: artistReading,
+          key: key,
           low: low,
           high: high,
           falsetto: falsetto,
@@ -1031,7 +1405,7 @@
       render();
     });
 
-    // --- 3. ファイルダウンロード＆インポート処理 ---
+    // --- 3. ファイルダウンロード＆共有・インポート処理 ---
     const fileModal = document.getElementById('file-modal');
     const jsonBanner = document.getElementById('json-mode-banner');
     const fileInput = document.getElementById('json-file-input');
@@ -1041,25 +1415,58 @@
       fileInput.value = '';
       selectedFileJsonData = null;
       fileActionButtons.classList.add('hidden');
+      document.getElementById('export-count-label').textContent = songDatabase.length;
       fileModal.classList.remove('hidden');
+      lucide.createIcons();
     });
 
     document.getElementById('btn-close-file-modal').addEventListener('click', () => {
       fileModal.classList.add('hidden');
     });
 
-    // A. JSONファイルダウンロード
     document.getElementById('btn-download-json-file').addEventListener('click', () => {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(songDatabase, null, 2));
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", "karaoke.json");
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
+      try {
+        const jsonString = JSON.stringify(songDatabase, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.href = url;
+        downloadAnchor.download = 'karaoke.json';
+        downloadAnchor.style.display = 'none';
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+
+        setTimeout(() => {
+          document.body.removeChild(downloadAnchor);
+          URL.revokeObjectURL(url);
+        }, 1500);
+      } catch (err) {
+        alert('ダウンロード中にエラーが発生しました: ' + err.message);
+      }
     });
 
-    // B. ファイル選択時のパース処理
+    document.getElementById('btn-share-json-file').addEventListener('click', async () => {
+      try {
+        const jsonString = JSON.stringify(songDatabase, null, 2);
+        const file = new File([jsonString], 'karaoke.json', { type: 'application/json' });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'karaoke.json',
+            text: 'Myカラオケ帳のバックアップデータ'
+          });
+        } else {
+          document.getElementById('btn-download-json-file').click();
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          document.getElementById('btn-download-json-file').click();
+        }
+      }
+    });
+
     fileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) {
@@ -1083,7 +1490,6 @@
       reader.readAsText(file);
     });
 
-    // C. 一時参照モード
     document.getElementById('btn-file-temp-view').addEventListener('click', () => {
       if (!selectedFileJsonData) return;
       backupSongDatabase = [...songDatabase];
@@ -1095,7 +1501,6 @@
       alert('ファイルを「一時参照モード」で開きました。\nローカルデータは安全に保護されています。');
     });
 
-    // D. ローカルに完全取込
     document.getElementById('btn-file-import-permanent').addEventListener('click', () => {
       if (!selectedFileJsonData) return;
       if (!confirm('端末のローカルデータをこのファイルの内容で完全に上書きしますか？')) return;
@@ -1110,7 +1515,6 @@
       alert('ファイルの内容をローカルに完全取り込みました！');
     });
 
-    // 一時参照モード終了
     document.getElementById('btn-exit-json-mode').addEventListener('click', () => {
       if (backupSongDatabase) {
         songDatabase = backupSongDatabase;
@@ -1156,20 +1560,27 @@
     const tabs = [
       { id: 'tab-btn-kana', type: 'kana' },
       { id: 'tab-btn-artist', type: 'artist' },
+      { id: 'tab-btn-date', type: 'date' },
       { id: 'tab-btn-rank', type: 'rank' }
     ];
+
+    function switchTab(tabType) {
+      activeTab = tabType;
+      tabs.forEach(ot => {
+        const el = document.getElementById(ot.id);
+        if (ot.type === activeTab) {
+          el.className = 'flex flex-col items-center justify-center py-1 text-indigo-400 font-semibold transition active:scale-95';
+        } else {
+          el.className = 'flex flex-col items-center justify-center py-1 text-slate-400 hover:text-slate-200 transition active:scale-95';
+        }
+      });
+      render();
+    }
+
     tabs.forEach(t => {
       document.getElementById(t.id).addEventListener('click', () => {
-        activeTab = t.type;
-        tabs.forEach(ot => {
-          const el = document.getElementById(ot.id);
-          if (ot.type === activeTab) {
-            el.className = 'flex flex-col items-center justify-center py-1 text-indigo-400 font-semibold transition active:scale-95';
-          } else {
-            el.className = 'flex flex-col items-center justify-center py-1 text-slate-400 hover:text-slate-200 transition active:scale-95';
-          }
-        });
-        render();
+        if (t.type !== 'date') targetDateFilter = null;
+        switchTab(t.type);
       });
     });
 
