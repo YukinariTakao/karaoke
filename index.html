@@ -321,20 +321,32 @@
           </div>
         </div>
 
-        <!-- 音域ドロップダウン（A基準） -->
+        <!-- 音域ドロップダウン（A基準 + 「不明」初期設定＆ボタン） -->
         <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2.5">
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold text-slate-300">音域設定（A基準体系）</span>
-            <span class="text-[10px] text-slate-500">C4 = mid2C (中央ド)</span>
+            <button type="button" id="btn-reset-all-unknown" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
+              地声上下を不明にする
+            </button>
           </div>
 
           <div>
-            <label class="text-[11px] text-slate-400 block mb-1">最低音</label>
+            <div class="flex items-center justify-between mb-1">
+              <label class="text-[11px] text-slate-400">最低音</label>
+              <button type="button" onclick="document.getElementById('form-low').value=''" class="text-[10px] px-1.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700/80 transition">
+                不明
+              </button>
+            </div>
             <select id="form-low" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono"></select>
           </div>
 
           <div>
-            <label class="text-[11px] text-slate-400 block mb-1">最高音（地声）</label>
+            <div class="flex items-center justify-between mb-1">
+              <label class="text-[11px] text-slate-400">最高音（地声）</label>
+              <button type="button" onclick="document.getElementById('form-high').value=''" class="text-[10px] px-1.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700/80 transition">
+                不明
+              </button>
+            </div>
             <select id="form-high" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono"></select>
           </div>
 
@@ -369,7 +381,7 @@
         </button>
       </div>
 
-      <!-- ダウンロード（上書き用ファイル名固定） -->
+      <!-- ダウンロード -->
       <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-2">
         <h4 class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
           <i data-lucide="download" class="w-3.5 h-3.5 text-emerald-400"></i>
@@ -446,12 +458,13 @@
     }
     generatePitchOptions();
 
-    function populateSelect(selectEl, selectedVal, includeNone = false) {
+    function populateSelect(selectEl, selectedVal, emptyLabel = null) {
       selectEl.innerHTML = '';
-      if (includeNone) {
+      if (emptyLabel !== null) {
         const opt = document.createElement('option');
         opt.value = '';
-        opt.textContent = 'なし（裏声なし）';
+        opt.textContent = emptyLabel;
+        if (!selectedVal) opt.selected = true;
         selectEl.appendChild(opt);
       }
       PITCH_OPTIONS.forEach(item => {
@@ -668,11 +681,9 @@
       });
     }
 
-    // --- アーティスト別表示（アーティスト50音順 ＆ アーティスト内楽曲50音順） ---
     function renderArtistView(songs, container) {
       container.innerHTML = '';
 
-      // 1. アーティストごとにグループ化
       const groups = new Map();
       songs.forEach(s => {
         const artist = s.artist || '不明';
@@ -687,14 +698,12 @@
         groups.get(artist).songs.push(s);
       });
 
-      // 2. アーティストをよみがな（50音順）でソート
       const sortedArtistGroups = Array.from(groups.values()).sort((a, b) => {
         const keyA = a.artistReading || a.artist;
         const keyB = b.artistReading || b.artist;
         return keyA.localeCompare(keyB, 'ja');
       });
 
-      // 3. 各アーティスト内の曲も曲名よみがな（50音順）でソートして描画
       sortedArtistGroups.forEach(group => {
         group.songs.sort((a, b) => (a.reading || a.title || '').localeCompare(b.reading || b.title || '', 'ja'));
 
@@ -922,6 +931,11 @@
     };
 
     // --- 2. 曲編集 / 新規追加 ---
+    document.getElementById('btn-reset-all-unknown').addEventListener('click', () => {
+      document.getElementById('form-low').value = '';
+      document.getElementById('form-high').value = '';
+    });
+
     function openEditModal(songId = null) {
       updateExistingArtistDropdown();
       const modal = document.getElementById('edit-modal');
@@ -938,9 +952,9 @@
         document.getElementById('form-artist').value = song.artist;
         document.getElementById('form-artist-reading').value = song.artistReading || '';
 
-        populateSelect(document.getElementById('form-low'), song.low || 'C3');
-        populateSelect(document.getElementById('form-high'), song.high || 'G4');
-        populateSelect(document.getElementById('form-falsetto'), song.falsetto || '', true);
+        populateSelect(document.getElementById('form-low'), song.low || '', '不明');
+        populateSelect(document.getElementById('form-high'), song.high || '', '不明');
+        populateSelect(document.getElementById('form-falsetto'), song.falsetto || '', 'なし（裏声なし）');
 
         deleteBtn.classList.remove('hidden');
       } else {
@@ -951,9 +965,10 @@
         document.getElementById('form-artist').value = '';
         document.getElementById('form-artist-reading').value = '';
 
-        populateSelect(document.getElementById('form-low'), 'C3');
-        populateSelect(document.getElementById('form-high'), 'G4');
-        populateSelect(document.getElementById('form-falsetto'), '', true);
+        // 初期設定として「不明」を選択
+        populateSelect(document.getElementById('form-low'), '', '不明');
+        populateSelect(document.getElementById('form-high'), '', '不明');
+        populateSelect(document.getElementById('form-falsetto'), '', 'なし（裏声なし）');
 
         deleteBtn.classList.add('hidden');
       }
@@ -968,8 +983,8 @@
       const reading = document.getElementById('form-reading').value.trim();
       const artist = document.getElementById('form-artist').value.trim();
       const artistReading = document.getElementById('form-artist-reading').value.trim();
-      const low = document.getElementById('form-low').value;
-      const high = document.getElementById('form-high').value;
+      const low = document.getElementById('form-low').value || null;
+      const high = document.getElementById('form-high').value || null;
       const falsetto = document.getElementById('form-falsetto').value || null;
 
       if (id) {
